@@ -4,10 +4,22 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 12:01:39
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-27 12:38:18
+ * @LastEditTime: 2021-08-28 04:35:33
  */
 
 #include "VideoPipeline.h"
+
+static void qtdemux_pad_added_cb (
+    GstElement* qtdemux, GstPad* pad, gpointer data)
+{
+    GstPad* sinkpad = gst_element_get_static_pad (
+                        static_cast<GstElement*> (data), "sink");
+
+    if (gst_pad_link(pad, sinkpad) != GST_PAD_LINK_OK) {
+        LOG_ERROR_MSG ("fail to link qtdemux and h264parse");
+    }
+    gst_object_unref(sinkpad);
+}
 
 VideoPipeline::VideoPipeline (const VideoPipelineConfig& config)
 {
@@ -28,11 +40,11 @@ bool VideoPipeline::SetPipeline (std::string& pipeline)
 
 bool VideoPipeline::Create (void)
 {
-    bool ret = false;
 
 #ifdef PARSE_LAUNCH
     GError *error = NULL;
 
+    LOG_INFO_MSG ("Parsing pipeline: %s", m_pipeline.c_str());
     m_gstPipeline = gst_parse_launch (m_pipeline.c_str(), &error);
     if ( error != NULL ) {
         LOG_ERROR_MSG ("Could not construct pipeline: %s", error->message);
@@ -40,12 +52,12 @@ bool VideoPipeline::Create (void)
         goto exit;
     }
 
-    return ret;
+    return true;
 #endif
 
 #ifdef FACTORY_MAKE
     if (!(m_gstPipeline = gst_pipeline_new ("video-pipeline"))) {
-        LOG_ERR_MSG ("Failed to create pipeline named video");
+        LOG_ERROR_MSG ("Failed to create pipeline named video");
         goto exit;
     }
     gst_pipeline_set_auto_flush_bus (GST_PIPELINE (m_gstPipeline), true);
@@ -55,7 +67,7 @@ bool VideoPipeline::Create (void)
         goto exit;
     }
     g_object_set (G_OBJECT (m_source), "location",
-            m_config.src.cstr(), NULL);
+            m_config.src.c_str(), NULL);
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_source, NULL);
 
     if (!(m_qtdemux = gst_element_factory_make ("qtdemux", "demux"))) {
@@ -63,6 +75,21 @@ bool VideoPipeline::Create (void)
         goto exit;
     }
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_qtdemux, NULL);
+
+    if (!gst_element_link_many (m_source, m_qtdemux, NULL)) {
+        LOG_ERROR_MSG ("Failed to link filesrc->qtdemux");
+            goto exit;
+    }
+
+    if (!(m_h264parse = gst_element_factory_make ("h264parse", "parse"))) {
+        LOG_ERROR_MSG ("Failed to create element h264parse named parse");
+        goto exit;
+    }
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_h264parse, NULL);
+    
+    // Link qtdemux with h264parse
+    g_signal_connect (m_qtdemux, "pad-added",
+        G_CALLBACK(qtdemux_pad_added_cb), m_h264parse);
 
     if (!(m_decoder = gst_element_factory_make ("qtivdec", "decode"))) {
         LOG_ERROR_MSG ("Failed to create element qtivdec named decode");
@@ -74,19 +101,19 @@ bool VideoPipeline::Create (void)
         LOG_ERROR_MSG ("Failed to create element waylandsink named display");
         goto exit;
     }
-    gst_bin_add_many (GST_BIN (m_gstPipeline), m_qtdemux, NULL);
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_display, NULL);
 
-    if (!gst_element_link_many (m_source, m_qtdemux, m_decoder, m_display, NULL)) {
-        LOG_ERROR_MSG ("Failed to link filesrc->qtdemux->qtivdec->waylandsink");
+    if (!gst_element_link_many (m_h264parse, m_decoder, m_display, NULL)) {
+        LOG_ERROR_MSG ("Failed to link h264parse->qtivdec->waylandsink");
             goto exit;
     }
 
-    return ret;
+    return true;
 #endif
 
 exit:
-
-    return ret;
+    LOG_ERROR_MSG ("Failed to create video pipeline");
+    return false;
 }
 
 bool VideoPipeline::Start (void)

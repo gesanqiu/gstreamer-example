@@ -33,3 +33,6 @@
 
 # Build Files
 build/
+
+# MP4 files
+*.mp4

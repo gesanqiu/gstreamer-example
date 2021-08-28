@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 08:11:39
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-27 12:38:07
+ * @LastEditTime: 2021-08-28 03:23:12
  */
 #pragma once
 
@@ -39,10 +39,11 @@ private:
 #ifdef FACTORY_MAKE
     GstElement* m_source;
     GstElement* m_qtdemux;
+    GstElement* m_h264parse;
     GstElement* m_decoder;
     GstElement* m_display;
 #endif
-}
+};
 
 /*
 gst-launch-1.0 filesrc location=test.mp4 ! qtdemux ! qtivdec ! waylandsink
