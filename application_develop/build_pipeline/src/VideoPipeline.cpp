@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 12:01:39
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-28 04:35:33
+ * @LastEditTime: 2021-08-28 09:41:29
  */
 
 #include "VideoPipeline.h"
@@ -57,7 +57,7 @@ bool VideoPipeline::Create (void)
 
 #ifdef FACTORY_MAKE
     if (!(m_gstPipeline = gst_pipeline_new ("video-pipeline"))) {
-        LOG_ERROR_MSG ("Failed to create pipeline named video");
+        LOG_ERROR_MSG ("Failed to create pipeline named video-pipeline");
         goto exit;
     }
     gst_pipeline_set_auto_flush_bus (GST_PIPELINE (m_gstPipeline), true);

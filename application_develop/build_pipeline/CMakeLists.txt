@@ -1,4 +1,7 @@
+# created by Ricardo Lu in 08/28/2021
+
 cmake_minimum_required(VERSION 3.10)
+
 project(build_pipeline)
 
 set(CMAKE_CXX_STANDARD 11)
@@ -10,6 +13,7 @@ pkg_check_modules(GLIB   REQUIRED glib-2.0)
 pkg_check_modules(GFLAGS REQUIRED gflags)
 
 include_directories(
+    ${PROJECT_SOURCE_DIR}/inc
     ${GST_INCLUDE_DIRS}
     ${GSTAPP_INCLUDE_DIRS}
     ${GLIB_INCLUDE_DIRS}
