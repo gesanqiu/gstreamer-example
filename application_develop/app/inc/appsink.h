@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 10:05:59
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-28 11:48:53
+ * @LastEditTime: 2021-08-29 11:55:46
  */
 #pragma once
 
@@ -13,30 +13,27 @@
 typedef struct _SinkPipelineConfig {
     std::string src;
 
-    /*-----------waylandsink-------------*/
-    std::string sink_format;
-    int         sink_width;
-    int         sink_height;
+    /*-------------waylandsink-------------*/
+    std::string conv_format;
+    int         conv_width;
+    int         conv_height;
 }SinkPipelineConfig;
 
 class SinkPipeline
 {
 public:
-    SinkPipeline (const SinkPipelineConfig& config);
-    bool Create   (void);
-    bool Start    (void);
-    bool Pause    (void);
-    bool Resume   (void);
-    void Destroy  (void);
+    SinkPipeline      (const SinkPipelineConfig& config);
+    bool Create       (void);
+    bool Start        (void);
+    bool Pause        (void);
+    bool Resume       (void);
+    void Destroy      (void);
     void SetCallbacks (SinkPutDataFunc func, void* args);
-    void SetCallbacks (SrcGetDataFunc func, void* args);
-    ~SinkPipeline (void);
+    ~SinkPipeline     (void);
 
 public:
     SinkPutDataFunc m_putDataFunc;
     void*           m_putDataArgs;
-    SrcGetDataFunc  m_getDataFunc;
-    void*           m_getDataArgs;
 
 private:
     SinkPipelineConfig m_config;

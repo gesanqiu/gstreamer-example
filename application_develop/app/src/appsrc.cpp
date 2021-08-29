@@ -4,24 +4,55 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:57:13
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-28 11:58:32
+ * @LastEditTime: 2021-08-29 12:23:47
  */
 
 #include "appsrc.h"
 
 GstFlowReturn cb_appsrc_need_data (
-    GstElement* src,
+    GstElement* appsrc,
+    guint length,
     gpointer user_data)
 {
-    //TS_INFO_MSG_V ("cb_appsink_new_sample called");
-    SrcPipeline* sp = (SrcPipeline*) user_data;
+    // LOG_INFO_MSG ("cb_appsrc_need_data called, user_data: %p", user_data);
+    SrcPipeline* sp = reinterpret_cast<SrcPipeline*> (user_data);
+    GstBuffer* buffer;
+    GstMapInfo map;
+    GstFlowReturn ret = GST_FLOW_OK;
 
-    return GST_FLOW_OK;
+    std::shared_ptr<cv::Mat> img;
+
+    if (sp->m_getDataFunc) {
+        img = sp->m_getDataFunc (sp->m_getDataArgs);
+
+        int len = img->total() * img->elemSize();
+        buffer = gst_buffer_new_allocate (NULL, len, NULL);
+
+        gst_buffer_map(buffer,&map,GST_MAP_READ);
+        memcpy(map.data, img->data, len);
+
+        GST_BUFFER_PTS (buffer) = sp->m_timestamp;
+        GST_BUFFER_DURATION (buffer) = gst_util_uint64_scale_int (1, GST_SECOND, 25);
+        sp->m_timestamp += GST_BUFFER_DURATION (buffer) ;
+        g_signal_emit_by_name (appsrc, "push-buffer", buffer, &ret);
+        gst_buffer_unmap(buffer, &map);
+        gst_buffer_unref (buffer);
+
+        if (ret != GST_FLOW_OK) {
+        /* something wrong, stop pushing */
+        LOG_ERROR_MSG ("push-buffer fail");
+        }
+    }
+
+    // usleep (25 * 1000);
+
+    return ret;
 }
 
 SrcPipeline::SrcPipeline (const SrcPipelineConfig& config)
 {
     m_config = config;
+    m_timestamp = 0;
 }
 
 SrcPipeline::~SrcPipeline ()
@@ -48,6 +79,15 @@ bool SrcPipeline::Create (void)
     g_signal_connect (m_appsrc, "need-data",
         G_CALLBACK (cb_appsrc_need_data), reinterpret_cast<void*> (this));
 
+    m_transCaps = gst_caps_new_simple ("video/x-raw", "format", G_TYPE_STRING,
+        m_config.src_format.c_str(), "width", G_TYPE_INT, m_config.src_width,
+          "height", G_TYPE_INT, m_config.src_height, NULL);
+    g_object_set (G_OBJECT(m_appsrc), "caps", m_transCaps, NULL);
+    gst_caps_unref (m_transCaps); 
+    g_object_set (G_OBJECT(m_appsrc), "stream-type",
+        GST_APP_STREAM_TYPE_STREAM, NULL);
+    g_object_set (G_OBJECT(m_appsrc), "is-live", true, NULL);
+
     gst_bin_add_many (GST_BIN (m_srcPipeline), m_appsrc, NULL);
     
     if (!(m_videoconv = gst_element_factory_make ("videoconvert", "videoconv"))) {
@@ -56,13 +96,28 @@ bool SrcPipeline::Create (void)
     }
     gst_bin_add_many (GST_BIN (m_srcPipeline), m_videoconv, NULL);
 
+    m_transCaps = gst_caps_new_simple ("video/x-raw", "format", G_TYPE_STRING,
+        m_config.conv_format.c_str(), "width", G_TYPE_INT, m_config.conv_width,
+          "height", G_TYPE_INT, m_config.conv_height, NULL);
+
+    if (!(m_capfilter = gst_element_factory_make("capsfilter", "capfilter"))) {
+        LOG_ERROR_MSG ("Failed to create element capsfilter named capfilter");
+        goto exit;
+    }
+
+    g_object_set (G_OBJECT(m_capfilter), "caps", m_transCaps, NULL);
+    gst_caps_unref (m_transCaps); 
+
+    gst_bin_add_many (GST_BIN (m_srcPipeline), m_capfilter, NULL);
+
     if (!(m_display = gst_element_factory_make ("waylandsink", "display"))) {
         LOG_ERROR_MSG ("Failed to create element waylandsink named display");
         goto exit;
     }
     gst_bin_add_many (GST_BIN (m_srcPipeline), m_display, NULL);
 
-    if (!gst_element_link_many (m_appsrc, m_videoconv, m_display, NULL)) {
+    if (!gst_element_link_many (m_appsrc, m_videoconv,
+            m_capfilter,m_display, NULL)) {
         LOG_ERROR_MSG ("Failed to link h264parse->qtivdec->waylandsink");
             goto exit;
     }
@@ -146,4 +201,12 @@ void SrcPipeline::Destroy (void)
 
         m_srcPipeline = NULL;
     }
+}
+
+void SrcPipeline::SetCallbacks (SrcGetDataFunc func, void* args)
+{
+    LOG_INFO_MSG ("src set callback called");
+
+    m_getDataFunc = func;
+    m_getDataArgs = args;
 }

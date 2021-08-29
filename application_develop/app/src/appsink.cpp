@@ -4,30 +4,83 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:57:03
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-28 11:50:25
+ * @LastEditTime: 2021-08-29 11:58:03
  */
 
 #include "appsink.h"
 
 GstFlowReturn cb_appsink_new_sample (
-    GstElement* sink,
+    GstElement* appsink,
     gpointer user_data)
 {
-    //TS_INFO_MSG_V ("cb_appsink_new_sample called");
+    // LOG_INFO_MSG ("cb_appsink_new_sample called, user data: %p", user_data);
 
-    SinkPipeline* sp = (SinkPipeline*) user_data;
+    SinkPipeline* sp = reinterpret_cast<SinkPipeline*> (user_data);
     GstSample* sample = NULL;
+    GstBuffer* buffer = NULL;
+    GstMapInfo map;
+    const GstStructure* info = NULL;
+    GstCaps* caps = NULL;
+    int sample_width = 0;
+    int sample_height = 0;
 
-    g_signal_emit_by_name (sink, "pull-sample", &sample);
+    g_signal_emit_by_name (appsink, "pull-sample", &sample);
 
     if (sample) {
-        if (sp->m_putDataFunc) {
-            sp->m_putDataFunc(sample, sp->m_putDataArgs);
-        } else {
-            gst_sample_unref (sample);
+        buffer = gst_sample_get_buffer (sample);
+        if ( buffer == NULL ) {
+            LOG_ERROR_MSG ("get buffer is null");
+            goto exit;
+        }
+
+        gst_buffer_map (buffer, &map, GST_MAP_READ);
+
+        caps = gst_sample_get_caps (sample);
+        if ( caps == NULL ) {
+            LOG_ERROR_MSG ("get caps is null");
+            goto exit;
+        }
+
+        info = gst_caps_get_structure (caps, 0);
+        if ( info == NULL ) {
+            LOG_ERROR_MSG ("get info is null");
+            goto exit;
+        }
+
+        // ---- Read frame and convert to opencv format ---------------
+        // convert gstreamer data to OpenCV Mat, you could actually
+        // resolve height / width from caps...
+        gst_structure_get_int (info, "width", &sample_width);
+        gst_structure_get_int (info, "height", &sample_height);
+
+        // appsink product queue produce
+        {
+            // init a cv::Mat with gst buffer address: deep copy
+            if (map.data == NULL) {
+                LOG_ERROR_MSG("appsink buffer data empty\n");
+                return GST_FLOW_OK;
+            }
+
+            cv::Mat img (sample_height, sample_width, CV_8UC3,
+                        (unsigned char*)map.data, cv::Mat::AUTO_STEP);
+            img = img.clone();
+
+            if (sp->m_putDataFunc) {
+                sp->m_putDataFunc(std::make_shared<cv::Mat> (img),
+                    sp->m_putDataArgs);
+            } else {
+                goto exit;
+            }
         }
     }
 
+exit:
+    if (buffer) {
+        gst_buffer_unmap (buffer, &map);
+    }
+    if (sample) {
+        gst_sample_unref (sample);
+    }
     return GST_FLOW_OK;
 }
 
@@ -106,8 +159,8 @@ bool SinkPipeline::Create (void)
     gst_bin_add_many (GST_BIN (m_sinkPipeline), m_qtivtrans, NULL);
 
     m_transCaps = gst_caps_new_simple ("video/x-raw", "format", G_TYPE_STRING,
-        m_config.sink_format.c_str(), "width", G_TYPE_INT, m_config.sink_width,
-          "height", G_TYPE_INT, m_config.sink_height, NULL);
+        m_config.conv_format.c_str(), "width", G_TYPE_INT, m_config.conv_width,
+          "height", G_TYPE_INT, m_config.conv_height, NULL);
 
     if (!(m_capfilter = gst_element_factory_make("capsfilter", "capfilter"))) {
         LOG_ERROR_MSG ("Failed to create element capsfilter named capfilter");
@@ -126,8 +179,8 @@ bool SinkPipeline::Create (void)
 
     g_object_set (m_appsink, "emit-signals", TRUE, NULL);
 
-    g_signal_connect (m_appsink, "new-sample", G_CALLBACK (
-        cb_appsink_new_sample), reinterpret_cast<void*> (this));
+    g_signal_connect (m_appsink, "new-sample",
+        G_CALLBACK (cb_appsink_new_sample), reinterpret_cast<void*> (this));
 
     gst_bin_add_many (GST_BIN (m_sinkPipeline), m_appsink, NULL);
 
@@ -216,4 +269,12 @@ void SinkPipeline::Destroy (void)
 
         m_sinkPipeline = NULL;
     }
+}
+
+void SinkPipeline::SetCallbacks (SinkPutDataFunc func, void* args)
+{
+    LOG_INFO_MSG ("sink set callback called");
+
+    m_putDataFunc = func;
+    m_putDataArgs = args;
 }
