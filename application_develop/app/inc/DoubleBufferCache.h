@@ -1,10 +1,10 @@
 /*
- * @Description: 
- * @version: 
+ * @Description: Double Buffer Cache Implement.
+ * @version: 1.0
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-29 08:51:01
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-29 09:14:33
+ * @LastEditTime: 2021-08-29 12:36:32
  */
 #pragma once
 

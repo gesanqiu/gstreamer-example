@@ -1,10 +1,10 @@
 /*
- * @Description: 
- * @version: 
+ * @Description: Appsink Pipeline Header.
+ * @version: 1.0
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 10:05:59
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-29 11:55:46
+ * @LastEditTime: 2021-08-29 12:35:47
  */
 #pragma once
 
@@ -12,7 +12,6 @@
 
 typedef struct _SinkPipelineConfig {
     std::string src;
-
     /*-------------waylandsink-------------*/
     std::string conv_format;
     int         conv_width;

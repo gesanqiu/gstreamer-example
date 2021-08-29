@@ -1,16 +1,17 @@
 /*
- * @Description: 
- * @version: 
+ * @Description: Appsrc Pipeline Header.
+ * @version: 1.0
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 10:06:03
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-29 12:04:27
+ * @LastEditTime: 2021-08-29 12:36:06
  */
 #pragma once
 
 #include "Common.h"
 
 typedef struct _SrcPipelineConfig {
+    /*--------------appsrc cps--------------*/
     std::string src_format;
     int         src_width;
     int         src_height;

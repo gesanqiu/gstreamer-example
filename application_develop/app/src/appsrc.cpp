@@ -1,10 +1,10 @@
 /*
- * @Description: 
- * @version: 
+ * @Description: Appsrc Pipeline Implement.
+ * @version: 1.0
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:57:13
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-29 12:23:47
+ * @LastEditTime: 2021-08-29 12:37:01
  */
 
 #include "appsrc.h"
