@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:57:13
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-29 12:37:01
+ * @LastEditTime: 2021-08-29 12:46:11
  */
 
 #include "appsrc.h"
@@ -26,6 +26,8 @@ GstFlowReturn cb_appsrc_need_data (
         img = sp->m_getDataFunc (sp->m_getDataArgs);
 
         int len = img->total() * img->elemSize();
+        // zero-copy GstBuffer
+        // buffer = gst_buffer_new_wrapped(img->data, len);
         buffer = gst_buffer_new_allocate (NULL, len, NULL);
 
         gst_buffer_map(buffer,&map,GST_MAP_READ);
