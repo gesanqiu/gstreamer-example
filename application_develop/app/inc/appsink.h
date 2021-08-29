@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 10:05:59
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-29 12:35:47
+ * @LastEditTime: 2021-08-29 12:56:53
  */
 #pragma once
 
@@ -48,6 +48,10 @@ private:
 };
 
 /*
-Decode Pipeline: filesrc location=test.mp4 ! qtdemux ! qtivdec ! appsink
-Display Pipeline: appsrc ! videoconvert ! waylandsink
+Decode Pipeline: 
+    filesrc location=test.mp4 ! qtdemux ! qtivdec ! qtivtransform ! 
+    video/x-raw,format=BGR,width=1920,height=1080 ! appsink
+Display Pipeline: 
+    appsrc stream-type=0 is-live=true caps=video/x-raw,format=BGR,width=1920,height=1080
+     ! videoconvert ! video/x-raw,format=NV12,width=1920,height=1080 ! waylandsink
 */
