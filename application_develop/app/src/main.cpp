@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:17:16
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-30 13:32:57
+ * @LastEditTime: 2021-08-30 13:34:17
  */
 
 #include <gflags/gflags.h>
@@ -40,7 +40,7 @@ DEFINE_validator (srcuri, &validateSrcUri);
 /**
  * @brief: Appsink transparent interface, draw a green rectangle
  * @Author: Ricardo Lu
- * @param {shared_ptr<cv::Mat>} img - image need to be drawed
+ * @param {shared_ptr<cv::Mat>} img - appsink image need to be drawn
  * @param {void*} user_data - thread global data buffer structure
  * @return {*}
  */
