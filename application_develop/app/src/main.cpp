@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:17:16
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-30 13:26:56
+ * @LastEditTime: 2021-08-30 13:32:57
  */
 
 #include <gflags/gflags.h>
@@ -37,6 +37,13 @@ static bool validateSrcUri (const char* name, const std::string& value) {
 DEFINE_string (srcuri, "", "algorithm library with APIs: alg{Init/Proc/Ctrl/Fina}");
 DEFINE_validator (srcuri, &validateSrcUri);
 
+/**
+ * @brief: Appsink transparent interface, draw a green rectangle
+ * @Author: Ricardo Lu
+ * @param {shared_ptr<cv::Mat>} img - image need to be drawed
+ * @param {void*} user_data - thread global data buffer structure
+ * @return {*}
+ */
 void putData (std::shared_ptr<cv::Mat> img, void* user_data)
 {
     // LOG_INFO_MSG ("putData called");
@@ -46,9 +53,9 @@ void putData (std::shared_ptr<cv::Mat> img, void* user_data)
 
     std::string sinkwords ("appsink");
     cv::Point fontpos= cv::Point (100, 115);
-    cv::Scalar fongcolor(150, 255, 40);
+    cv::Scalar fontcolor(150, 255, 40);
     cv::putText(*img, sinkwords, fontpos, cv::FONT_HERSHEY_COMPLEX,
-                    0.8, fongcolor, 2, 0.3);
+                    0.8, fontcolor, 2, 0.3);
     cv::Rect rect (100, 100, 1720, 880);
     cv::Scalar rectcolor(0, 200, 0);
     cv::rectangle (*img, rect, rectcolor, 3);
@@ -56,6 +63,12 @@ void putData (std::shared_ptr<cv::Mat> img, void* user_data)
     db->feed(img);
 }
 
+/**
+ * @brief: Appsrc transparent interface, draw a red rectangle
+ * @Author: Ricardo Lu
+ * @param {void*} user_data - thread global data buffer structure
+ * @return std::shared_ptr<cv::Mat> - return to appsrc
+ */
 std::shared_ptr<cv::Mat> getData (void* user_data)
 {
     // LOG_INFO_MSG ("getData called");
@@ -68,9 +81,9 @@ std::shared_ptr<cv::Mat> getData (void* user_data)
 
     std::string srcwords ("appsrc");
     cv::Point fontpos= cv::Point (1700, 970);
-    cv::Scalar fongcolor(150, 255, 40);
+    cv::Scalar fontcolor(150, 255, 40);
     cv::putText(*img, srcwords, fontpos, cv::FONT_HERSHEY_COMPLEX,
-                    0.8, fongcolor, 2, 0.3);
+                    0.8, fontcolor, 2, 0.3);
     cv::Rect rect (110, 110, 1720, 880);
     cv::Scalar rectcolor(0, 0, 200);
     cv::rectangle (*img, rect, rectcolor, 3);
