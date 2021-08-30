@@ -34,3 +34,10 @@ make
 # gst_element_factory_make
 ./GstElementFactory --srcuri ../video.mp4
 ```
+
+上述程序运行结果等同于如下Pipeline：
+
+```shell
+gst-launch-1.0 filesrc location=test.mp4 ! qtdemux ! qtivdec ! waylandsink
+```
+
