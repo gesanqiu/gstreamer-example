@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:57:03
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-29 12:36:54
+ * @LastEditTime: 2021-08-30 13:15:09
  */
 
 #include "appsink.h"
@@ -21,10 +21,16 @@ GstFlowReturn cb_appsink_new_sample (
     GstMapInfo map;
     const GstStructure* info = NULL;
     GstCaps* caps = NULL;
+    GstFlowReturn ret = GST_FLOW_OK;
     int sample_width = 0;
     int sample_height = 0;
 
-    g_signal_emit_by_name (appsink, "pull-sample", &sample);
+    // equals to gst_app_sink_pull_sample (GST_APP_SINK_CAST (appsink), sample);
+    g_signal_emit_by_name (appsink, "pull-sample", &sample, &ret);
+    if (ret != GST_FLOW_OK) {
+        LOG_ERROR_MSG ("can't pull GstSample.");
+        return ret;
+    }
 
     if (sample) {
         buffer = gst_sample_get_buffer (sample);
@@ -177,8 +183,16 @@ bool SinkPipeline::Create (void)
         goto exit;
     }
 
+    // equals to gst_app_sink_set_emit_signals (GST_APP_SINK_CAST (m_appsink), true);
     g_object_set (m_appsink, "emit-signals", TRUE, NULL);
 
+    // full definition of appsink callbacks
+    /*
+    GstAppSinkCallbacks callbacks = {cb_appsink_eos,
+                            cb_appsink_new_preroll, cb_appsink_new_sample};
+    gst_app_sink_set_callbacks (GST_APP_SINK_CAST (m_appsink),
+        &callbacks, reinterpret_cast<void*> (this), NULL);
+    */
     g_signal_connect (m_appsink, "new-sample",
         G_CALLBACK (cb_appsink_new_sample), reinterpret_cast<void*> (this));
 

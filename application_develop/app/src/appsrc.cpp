@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:57:13
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-29 12:46:11
+ * @LastEditTime: 2021-08-30 13:21:39
  */
 
 #include "appsrc.h"
@@ -36,6 +36,8 @@ GstFlowReturn cb_appsrc_need_data (
         GST_BUFFER_PTS (buffer) = sp->m_timestamp;
         GST_BUFFER_DURATION (buffer) = gst_util_uint64_scale_int (1, GST_SECOND, 25);
         sp->m_timestamp += GST_BUFFER_DURATION (buffer) ;
+
+        // equals to gst_app_src_push_buffer (GST_APP_SRC_CAST (appsrc), buffer);
         g_signal_emit_by_name (appsrc, "push-buffer", buffer, &ret);
         gst_buffer_unmap(buffer, &map);
         gst_buffer_unref (buffer);
@@ -78,17 +80,29 @@ bool SrcPipeline::Create (void)
         goto exit;
     }
 
-    g_signal_connect (m_appsrc, "need-data",
-        G_CALLBACK (cb_appsrc_need_data), reinterpret_cast<void*> (this));
-
     m_transCaps = gst_caps_new_simple ("video/x-raw", "format", G_TYPE_STRING,
         m_config.src_format.c_str(), "width", G_TYPE_INT, m_config.src_width,
           "height", G_TYPE_INT, m_config.src_height, NULL);
+    // equals to gst_app_src_set_caps (GST_APP_SRC_CAST (m_appsrc), m_transCaps);
     g_object_set (G_OBJECT(m_appsrc), "caps", m_transCaps, NULL);
     gst_caps_unref (m_transCaps); 
+
+    // equals to gst_app_src_set_stream_type (GST_APP_SRC_CAST (m_appsrc),
+    //             GST_APP_STREAM_TYPE_STREAM);
     g_object_set (G_OBJECT(m_appsrc), "stream-type",
         GST_APP_STREAM_TYPE_STREAM, NULL);
+
     g_object_set (G_OBJECT(m_appsrc), "is-live", true, NULL);
+
+    // full definition of appsrc callbacks
+    /*
+    GstAppSrcCallbacks callbacks = {cb_appsrc_need_data,
+                            cb_appsrc_enough_data, cb_appsrc_seek_data};
+    gst_app_src_set_callbacks (GST_APP_SRC_CAST (m_appsrc),
+        &callbacks, reinterpret_cast<void*> (this), NULL);
+    */
+    g_signal_connect (m_appsrc, "need-data",
+        G_CALLBACK (cb_appsrc_need_data), reinterpret_cast<void*> (this));
 
     gst_bin_add_many (GST_BIN (m_srcPipeline), m_appsrc, NULL);
     

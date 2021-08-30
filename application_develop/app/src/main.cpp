@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:17:16
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-29 12:37:13
+ * @LastEditTime: 2021-08-30 13:26:56
  */
 
 #include <gflags/gflags.h>
@@ -130,7 +130,9 @@ int main(int argc, char* argv[])
     }
 
     m_sinkPipeline->Start();
-    sleep(3);
+
+    // appsink is slower than appsrc, so delay appsrc pipeline playing
+    sleep(1);
     m_srcPipeline->Start();
 
     g_main_loop_run (g_main_loop);
