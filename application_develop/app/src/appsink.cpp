@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:57:03
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-30 13:15:09
+ * @LastEditTime: 2021-08-31 14:10:18
  */
 
 #include "appsink.h"
@@ -91,15 +91,41 @@ exit:
 }
 
 static void qtdemux_pad_added_cb (
-    GstElement* qtdemux, GstPad* pad, gpointer data)
+    GstElement* src, GstPad* new_pad, gpointer user_data)
 {
-    GstPad* sinkpad = gst_element_get_static_pad (
-                        static_cast<GstElement*> (data), "sink");
+    GstPadLinkReturn ret;
+    GstCaps*         new_pad_caps = NULL;
+    GstStructure*    new_pad_struct = NULL;
+    const gchar*     new_pad_type = NULL;
 
-    if (gst_pad_link(pad, sinkpad) != GST_PAD_LINK_OK) {
+    SinkPipeline* vp = reinterpret_cast<SinkPipeline*> (user_data);
+
+    GstPad* v_sinkpad = gst_element_get_static_pad (
+                    reinterpret_cast<GstElement*> (vp->m_h264parse), "sink");
+
+    new_pad_caps = gst_pad_get_current_caps (new_pad);
+    new_pad_struct = gst_caps_get_structure (new_pad_caps, 0);
+    new_pad_type = gst_structure_get_name (new_pad_struct);
+
+    if (!g_str_has_prefix (new_pad_type, "video/x-h264")) {
+        LOG_WARN_MSG ("It has type '%s' which is not raw video. Ignoring.",
+            new_pad_type);
+        goto exit;
+    }
+
+    /* Attempt the link */
+    ret = gst_pad_link (new_pad, v_sinkpad);
+    if (GST_PAD_LINK_FAILED (ret)) {
         LOG_ERROR_MSG ("fail to link qtdemux and h264parse");
     }
-    gst_object_unref(sinkpad);
+
+exit:
+    /* Unreference the new pad's caps, if we got them */
+    if (new_pad_caps != NULL)
+        gst_caps_unref (new_pad_caps);
+
+    /* Unreference the sink pad */
+    gst_object_unref (v_sinkpad);
 }
 
 SinkPipeline::SinkPipeline (const SinkPipelineConfig& config)
@@ -150,7 +176,7 @@ bool SinkPipeline::Create (void)
     
     // Link qtdemux with h264parse
     g_signal_connect (m_qtdemux, "pad-added",
-        G_CALLBACK(qtdemux_pad_added_cb), m_h264parse);
+        G_CALLBACK(qtdemux_pad_added_cb), reinterpret_cast<void*> (this));
 
     if (!(m_decoder = gst_element_factory_make ("qtivdec", "decode"))) {
         LOG_ERROR_MSG ("Failed to create element qtivdec named decode");

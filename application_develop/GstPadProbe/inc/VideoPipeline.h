@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 08:11:39
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-29 13:33:40
+ * @LastEditTime: 2021-08-31 14:15:25
  */
 #pragma once
 
@@ -31,6 +31,7 @@ public:
     void SetCallbacks (ProbeGetResultFunc func, void* args);
     void SetCallbacks (ProcDataFunc func, void* args);
     ~VideoPipeline    (void);
+
 public:
     SinkPutDataFunc    m_putDataFunc;
     void*              m_putDataArgs;
@@ -41,7 +42,6 @@ public:
 
     unsigned long   m_queue0_probe;
 
-private:
     VideoPipelineConfig m_config;
     GstElement* m_gstPipeline;
 

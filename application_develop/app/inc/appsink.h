@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 10:05:59
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-29 12:56:53
+ * @LastEditTime: 2021-08-31 14:08:45
  */
 #pragma once
 
@@ -34,7 +34,6 @@ public:
     SinkPutDataFunc m_putDataFunc;
     void*           m_putDataArgs;
 
-private:
     SinkPipelineConfig m_config;
 
     GstElement* m_sinkPipeline;

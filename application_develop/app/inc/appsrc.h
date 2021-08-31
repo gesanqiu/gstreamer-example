@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 10:06:03
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-29 12:56:09
+ * @LastEditTime: 2021-08-31 14:08:53
  */
 #pragma once
 
@@ -38,7 +38,6 @@ public:
     void*           m_getDataArgs;
     uint64_t        m_timestamp;
 
-private:
     SrcPipelineConfig m_config;
 
     GstElement* m_srcPipeline;

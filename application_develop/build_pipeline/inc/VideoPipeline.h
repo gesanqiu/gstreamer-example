@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 08:11:39
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-28 03:23:12
+ * @LastEditTime: 2021-08-31 14:06:46
  */
 #pragma once
 
@@ -28,7 +28,7 @@ public:
 #endif
     ~VideoPipeline(void);
 
-private:
+public:
     VideoPipelineConfig m_config;
     GstElement* m_gstPipeline;
 
