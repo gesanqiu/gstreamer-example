@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:57:13
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-30 13:21:39
+ * @LastEditTime: 2021-08-31 09:12:02
  */
 
 #include "appsrc.h"
@@ -15,6 +15,7 @@ GstFlowReturn cb_appsrc_need_data (
     gpointer user_data)
 {
     // LOG_INFO_MSG ("cb_appsrc_need_data called, user_data: %p", user_data);
+    
     SrcPipeline* sp = reinterpret_cast<SrcPipeline*> (user_data);
     GstBuffer* buffer;
     GstMapInfo map;
@@ -43,8 +44,8 @@ GstFlowReturn cb_appsrc_need_data (
         gst_buffer_unref (buffer);
 
         if (ret != GST_FLOW_OK) {
-        /* something wrong, stop pushing */
-        LOG_ERROR_MSG ("push-buffer fail");
+            /* something wrong, stop pushing */
+            LOG_ERROR_MSG ("push-buffer failed");
         }
     }
 
