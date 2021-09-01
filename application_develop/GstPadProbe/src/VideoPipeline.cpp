@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 12:01:39
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-31 14:13:49
+ * @LastEditTime: 2021-09-01 12:42:10
  */
 
 #include "VideoPipeline.h"
@@ -119,7 +119,7 @@ exit:
     return GST_FLOW_OK;
 }
 
-static void qtdemux_pad_added_cb (
+static void cb_qtdemux_pad_added (
     GstElement* src, GstPad* new_pad, gpointer user_data)
 {
     GstPadLinkReturn ret;
@@ -202,10 +202,10 @@ bool VideoPipeline::Create (void)
         goto exit;
     }
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_h264parse, NULL);
-    
+
     // Link qtdemux with h264parse
     g_signal_connect (m_qtdemux, "pad-added",
-        G_CALLBACK(qtdemux_pad_added_cb), reinterpret_cast<void*> (this));
+        G_CALLBACK(cb_qtdemux_pad_added), reinterpret_cast<void*> (this));
 
     if (!(m_decoder = gst_element_factory_make ("qtivdec", "decode"))) {
         LOG_ERROR_MSG ("Failed to create element qtivdec named decode");
@@ -239,7 +239,8 @@ bool VideoPipeline::Create (void)
 
     if (!gst_element_link_many (m_h264parse, m_decoder, m_tee, 
             m_queue0, m_display, NULL)) {
-        LOG_ERROR_MSG ("Failed to link h264parse->qtivdec->waylandsink");
+        LOG_ERROR_MSG ("Failed to link h264parse->qtivdec"
+            "->tee->queue0->waylandsink");
             goto exit;
     }
 
@@ -283,7 +284,8 @@ bool VideoPipeline::Create (void)
 
     if (!gst_element_link_many (m_tee, m_queue1, m_qtivtrans, 
             m_capfilter, m_appsink, NULL)) {
-        LOG_ERROR_MSG ("Failed to link h264parse->qtivdec->waylandsink");
+        LOG_ERROR_MSG ("Failed to link tee->queue1->"
+            "qtivtransform->capfilter->appsink");
             goto exit;
     }
 

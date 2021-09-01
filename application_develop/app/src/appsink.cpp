@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:57:03
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-31 14:10:18
+ * @LastEditTime: 2021-09-01 12:41:27
  */
 
 #include "appsink.h"
@@ -90,7 +90,7 @@ exit:
     return GST_FLOW_OK;
 }
 
-static void qtdemux_pad_added_cb (
+static void cb_qtdemux_pad_added (
     GstElement* src, GstPad* new_pad, gpointer user_data)
 {
     GstPadLinkReturn ret;
@@ -173,10 +173,10 @@ bool SinkPipeline::Create (void)
         goto exit;
     }
     gst_bin_add_many (GST_BIN (m_sinkPipeline), m_h264parse, NULL);
-    
+
     // Link qtdemux with h264parse
     g_signal_connect (m_qtdemux, "pad-added",
-        G_CALLBACK(qtdemux_pad_added_cb), reinterpret_cast<void*> (this));
+        G_CALLBACK(cb_qtdemux_pad_added), reinterpret_cast<void*> (this));
 
     if (!(m_decoder = gst_element_factory_make ("qtivdec", "decode"))) {
         LOG_ERROR_MSG ("Failed to create element qtivdec named decode");

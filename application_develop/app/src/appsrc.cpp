@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:57:13
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-31 09:12:02
+ * @LastEditTime: 2021-09-01 12:41:48
  */
 
 #include "appsrc.h"
@@ -106,7 +106,7 @@ bool SrcPipeline::Create (void)
         G_CALLBACK (cb_appsrc_need_data), reinterpret_cast<void*> (this));
 
     gst_bin_add_many (GST_BIN (m_srcPipeline), m_appsrc, NULL);
-    
+
     if (!(m_videoconv = gst_element_factory_make ("videoconvert", "videoconv"))) {
         LOG_ERROR_MSG ("Failed to create element videoconvert named videoconv");
         goto exit;

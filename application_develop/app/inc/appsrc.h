@@ -4,14 +4,14 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 10:06:03
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-31 14:08:53
+ * @LastEditTime: 2021-09-01 11:53:53
  */
 #pragma once
 
 #include "Common.h"
 
 typedef struct _SrcPipelineConfig {
-    /*--------------appsrc cps--------------*/
+    /*--------------appsrc caps--------------*/
     std::string src_format;
     int         src_width;
     int         src_height;

@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 08:11:39
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-31 14:15:25
+ * @LastEditTime: 2021-09-01 11:45:50
  */
 #pragma once
 
@@ -12,7 +12,7 @@
 
 typedef struct _VideoPipelineConfig {
     std::string src;
-    /*-------------waylandsink-------------*/
+    /*-------------qtivtransform-------------*/
     std::string conv_format;
     int         conv_width;
     int         conv_height;

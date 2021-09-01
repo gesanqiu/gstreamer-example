@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 10:05:59
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-31 14:08:45
+ * @LastEditTime: 2021-09-01 11:53:47
  */
 #pragma once
 
@@ -12,7 +12,7 @@
 
 typedef struct _SinkPipelineConfig {
     std::string src;
-    /*-------------waylandsink-------------*/
+    /*-------------qtivtransform-------------*/
     std::string conv_format;
     int         conv_width;
     int         conv_height;
