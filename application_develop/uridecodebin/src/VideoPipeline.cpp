@@ -4,18 +4,20 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 12:01:39
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-31 14:14:32
+ * @LastEditTime: 2021-09-01 12:51:21
  */
 
 #include "VideoPipeline.h"
 
-static void qtdemux_pad_added_cb (
+static void cb_qtdemux_pad_added (
     GstElement* src, GstPad* new_pad, gpointer user_data)
 {
     GstPadLinkReturn ret;
     GstCaps*         new_pad_caps = NULL;
     GstStructure*    new_pad_struct = NULL;
     const gchar*     new_pad_type = NULL;
+
+    LOG_INFO_MSG ("cb_qtdemux_pad_added called");
 
     VideoPipeline* vp = reinterpret_cast<VideoPipeline*> (user_data);
 
@@ -47,6 +49,131 @@ exit:
     gst_object_unref (v_sinkpad);
 }
 
+/* 
+ * This function is called when decodebin has created the decode element, 
+ * filesrc: qtdemux, multiqueue, h264parse/h265parse, capfilter, qtivdec
+ * rtspsrc: rtph264depay/rtph265depay, h264parse/h265parse, capfilter, qtivdec
+ * so we have chance to configure it.
+ */
+static void
+cb_decodebin_child_added (
+    GstChildProxy* child_proxy, GObject* object, gchar* name, gpointer user_data)
+{
+    LOG_INFO_MSG ("cb_decodebin_child_added called");
+
+    VideoPipeline* vp = reinterpret_cast<VideoPipeline*> (user_data);
+
+    LOG_INFO_MSG ("Element '%s' added to decodebin", name);
+
+    if (g_strrstr (name, "qtdemux") == name) {
+        vp->m_qtdemux = reinterpret_cast<GstElement*> (object);
+        /*
+         * can't get h264parse sink pad and throw segement fault
+         * guess decodebin create h264parse in another thread
+         * and we can't get info of it at this time
+         */
+        // g_signal_connect (G_OBJECT (object), "pad-added",
+        //     G_CALLBACK (cb_qtdemux_pad_added), vp);
+    }
+
+    if ((g_strrstr (name, "h264parse") == name)) {
+        vp->m_h264parse = reinterpret_cast<GstElement*> (object);
+        LOG_INFO_MSG ("h264parse address: %p", vp->m_h264parse);
+    }
+
+    if (g_strrstr (name, "qtivdec") == name) {
+        vp->m_decoder = reinterpret_cast<GstElement*> (object);
+        g_object_set (object, "turbo", vp->m_config.turbo, NULL);
+        g_object_set (object, "skip-frames", vp->m_config.skip_frame, NULL);
+    }
+}
+
+/* 
+ * This function is called when uridecodebin has created 
+ * the source element: filesrc/rtspsrc/appsrc
+ * so we have chance to configure it.
+ */
+static void cb_uridecodebin_source_setup (
+    GstElement* pipeline, GstElement* source, gpointer user_data)
+{
+    VideoPipeline* vp = reinterpret_cast<VideoPipeline*> (user_data);
+
+    LOG_INFO_MSG ("cb_uridecodebin_source_setup called");
+
+    /* Configure rtspsrc
+    if (g_object_class_find_property (G_OBJECT_GET_CLASS (source), "latency")) {
+        LOG_INFO_MSG ("cb_uridecodebin_source_setup set %d latency",
+            vp->m_config.rtsp_latency);
+        g_object_set (G_OBJECT (source), "latency", vp->m_config.rtsp_latency, NULL);
+    }
+    */
+
+   /* Configure appsrc
+    GstCaps *m_sCaps;
+    src_Caps = gst_caps_new_simple ("video/x-raw", "format", G_TYPE_STRING,
+        m_config.src_format.c_str(), "width", G_TYPE_INT, m_config.src_width,
+          "height", G_TYPE_INT, m_config.src_height, NULL);
+    g_object_set (G_OBJECT(source), "caps", src_Caps, NULL);
+    g_signal_connect (source, "need-data", G_CALLBACK (start_feed), data);
+    g_signal_connect (source, "enough-data", G_CALLBACK (stop_feed), data);
+    gst_caps_unref (src_Caps);
+   */
+}
+
+static void cb_uridecodebin_pad_added (
+    GstElement* src, GstPad* new_pad, gpointer user_data)
+{
+    LOG_INFO_MSG ("cb_uridecodebin_pad_added called");
+
+    GstPadLinkReturn ret;
+    GstCaps*         new_pad_caps = NULL;
+    GstStructure*    new_pad_struct = NULL;
+    const gchar*     new_pad_type = NULL;
+
+    VideoPipeline* vp = reinterpret_cast<VideoPipeline*> (user_data);
+
+    GstPad* v_sinkpad = gst_element_get_static_pad (
+                    reinterpret_cast<GstElement*> (vp->m_display), "sink");
+
+    new_pad_caps = gst_pad_get_current_caps (new_pad);
+    new_pad_struct = gst_caps_get_structure (new_pad_caps, 0);
+    new_pad_type = gst_structure_get_name (new_pad_struct);
+
+    if (!g_str_has_prefix (new_pad_type, "video/x-raw")) {
+        LOG_WARN_MSG ("It has type '%s' which is not raw video. Ignoring.",
+            new_pad_type);
+        goto exit;
+    }
+
+    /* Attempt the link */
+    ret = gst_pad_link (new_pad, v_sinkpad);
+    if (GST_PAD_LINK_FAILED (ret)) {
+        LOG_ERROR_MSG ("fail to link qtdemux and h264parse");
+    }
+
+exit:
+    /* Unreference the new pad's caps, if we got them */
+    if (new_pad_caps != NULL)
+        gst_caps_unref (new_pad_caps);
+
+    /* Unreference the sink pad */
+    gst_object_unref (v_sinkpad);
+}
+
+static void cb_uridecodebin_child_added (
+    GstChildProxy* child_proxy, GObject* object, gchar* name, gpointer user_data)
+{
+    LOG_INFO_MSG ("cb_uridecodebin_child_added called");
+
+    LOG_INFO_MSG ("Element '%s' added to uridecodebin", name);
+    VideoPipeline* vp = reinterpret_cast<VideoPipeline*> (user_data);
+
+    if (g_strrstr (name, "decodebin") == name) {
+        g_signal_connect (G_OBJECT (object), "child-added",
+            G_CALLBACK (cb_decodebin_child_added), vp);
+    }
+}
+
 VideoPipeline::VideoPipeline (const VideoPipelineConfig& config)
 {
     m_config = config;
@@ -65,51 +192,26 @@ bool VideoPipeline::Create (void)
     }
     gst_pipeline_set_auto_flush_bus (GST_PIPELINE (m_gstPipeline), true);
 
-    if (!(m_source = gst_element_factory_make ("filesrc", "src"))) {
-        LOG_ERROR_MSG ("Failed to create element filesrc named src");
+    if (!(m_source = gst_element_factory_make ("uridecodebin", "src"))) {
+        LOG_ERROR_MSG ("Failed to create element uridecodebin named src");
         goto exit;
     }
-    g_object_set (G_OBJECT (m_source), "location",
-            m_config.src.c_str(), NULL);
+    g_object_set (G_OBJECT (m_source), "uri", m_config.src.c_str(), NULL);
+
+    g_signal_connect (G_OBJECT (m_source), "source-setup", G_CALLBACK (
+        cb_uridecodebin_source_setup), reinterpret_cast<void*> (this));
+    g_signal_connect (G_OBJECT (m_source), "pad-added",    G_CALLBACK (
+        cb_uridecodebin_pad_added),    reinterpret_cast<void*> (this));
+    g_signal_connect (G_OBJECT (m_source), "child-added",  G_CALLBACK (
+        cb_uridecodebin_child_added),  reinterpret_cast<void*> (this));
+
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_source, NULL);
-
-    if (!(m_qtdemux = gst_element_factory_make ("qtdemux", "demux"))) {
-        LOG_ERROR_MSG ("Failed to create element qtdemux named demux");
-        goto exit;
-    }
-    gst_bin_add_many (GST_BIN (m_gstPipeline), m_qtdemux, NULL);
-
-    if (!gst_element_link_many (m_source, m_qtdemux, NULL)) {
-        LOG_ERROR_MSG ("Failed to link filesrc->qtdemux");
-            goto exit;
-    }
-
-    if (!(m_h264parse = gst_element_factory_make ("h264parse", "parse"))) {
-        LOG_ERROR_MSG ("Failed to create element h264parse named parse");
-        goto exit;
-    }
-    gst_bin_add_many (GST_BIN (m_gstPipeline), m_h264parse, NULL);
-    
-    // Link qtdemux with h264parse
-    g_signal_connect (m_qtdemux, "pad-added",
-        G_CALLBACK(qtdemux_pad_added_cb), reinterpret_cast<void*> (this));
-
-    if (!(m_decoder = gst_element_factory_make ("qtivdec", "decode"))) {
-        LOG_ERROR_MSG ("Failed to create element qtivdec named decode");
-        goto exit;
-    }
-    gst_bin_add_many (GST_BIN (m_gstPipeline), m_decoder, NULL);
 
     if (!(m_display = gst_element_factory_make ("waylandsink", "display"))) {
         LOG_ERROR_MSG ("Failed to create element waylandsink named display");
         goto exit;
     }
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_display, NULL);
-
-    if (!gst_element_link_many (m_h264parse, m_decoder, m_display, NULL)) {
-        LOG_ERROR_MSG ("Failed to link h264parse->qtivdec->waylandsink");
-            goto exit;
-    }
 
     return true;
 

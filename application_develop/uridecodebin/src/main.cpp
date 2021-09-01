@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:17:16
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-31 12:14:29
+ * @LastEditTime: 2021-09-01 12:08:40
  */
 
 #include <gflags/gflags.h>
@@ -23,9 +23,11 @@ static bool validateSrcUri (const char* name, const std::string& value) {
         return false;
     }
 
+    int pos = value.find("//");
+
     struct stat statbuf;
-    if (!stat(value.c_str(), &statbuf)) {
-        LOG_INFO_MSG ("Found config file: %s", value.c_str());
+    if (!stat(value.substr(pos).c_str(), &statbuf)) {
+        LOG_INFO_MSG ("Found config file: %s", value.substr(pos).c_str());
         return true;
     }
 
@@ -53,14 +55,10 @@ int main(int argc, char* argv[])
     }
 
     m_vpConfig.src = FLAGS_srcuri;
+    m_vpConfig.turbo = true;
+    m_vpConfig.skip_frame = true;
 
     m_vp = new VideoPipeline(m_vpConfig);
-
-    m_pipelineCmd << "filesrc location=" << m_vpConfig.src << " ! ";
-    m_pipelineCmd << "qtdemux ! h264parse ! qtivdec ! waylandsink";
-
-    m_strPipeline = m_pipelineCmd.str();
-    m_vp->SetPipeline(m_strPipeline);
 
     if (!m_vp->Create()) {
         LOG_ERROR_MSG ("Pipeline Create failed: lack of elements");

@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 08:11:39
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-31 14:15:15
+ * @LastEditTime: 2021-09-01 12:53:17
  */
 #pragma once
 
@@ -12,10 +12,9 @@
 
 typedef struct _VideoPipelineConfig {
     std::string src;
-    /*-------------waylandsink-------------*/
-    std::string conv_format;
-    int         conv_width;
-    int         conv_height;
+    /*---------------qtivdec---------------*/
+    bool        turbo;
+    bool        skip_frame;
 }VideoPipelineConfig;
 
 class VideoPipeline
@@ -27,21 +26,9 @@ public:
     bool Pause        (void);
     bool Resume       (void);
     void Destroy      (void);
-    void SetCallbacks (SinkPutDataFunc func, void* args);
-    void SetCallbacks (ProbeGetResultFunc func, void* args);
-    void SetCallbacks (ProcDataFunc func, void* args);
     ~VideoPipeline    (void);
 
 public:
-    SinkPutDataFunc    m_putDataFunc;
-    void*              m_putDataArgs;
-    ProbeGetResultFunc m_getResultFunc;
-    void*              m_getResultArgs;
-    ProcDataFunc       m_procDataFunc;
-    void*              m_procDataArgs;
-
-    unsigned long   m_queue0_probe;
-
     VideoPipelineConfig m_config;
     GstElement* m_gstPipeline;
 
@@ -49,17 +36,13 @@ public:
     GstElement* m_qtdemux;
     GstElement* m_h264parse;
     GstElement* m_decoder;
-    GstElement* m_tee;
-    GstElement* m_queue0;
     GstElement* m_display;
-    GstElement* m_queue1;
-    GstElement* m_qtivtrans;
-    GstElement* m_capfilter;
     GstElement* m_appsink;
 };
 
 /*
-gst-launch-1.0 filesrc location=video.mp4 ! qtdemux ! h264parse ! qtivdec ! 
-tee name=t1 t1. ! queue ! waylandsink t1. ! queue ! qtivtransform ! 
-video/x-raw,format=BGR,width=1920,height=1080 ! appsink
+* gst-launch-1.0 uridecodebin uri=file:///absolute/path/video.mp4 ! waylandsink
+* or
+* gst-launch-1.0 filesrc location=video.mp4 ! qtdemux ! \
+* multiqueue ! h264parse ! capfilter ! qtivdec ! waylandsink
 */
