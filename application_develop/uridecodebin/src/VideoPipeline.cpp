@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 12:01:39
  * @LastEditors: Please set LastEditors
- * @LastEditTime: 2021-09-03 23:32:44
+ * @LastEditTime: 2021-09-03 23:54:28
  */
 
 #include "VideoPipeline.h"
@@ -51,8 +51,9 @@ exit:
 
 /* 
  * This function is called when decodebin has created the decode element, 
- * filesrc: qtdemux, multiqueue, h264parse/h265parse, capfilter, qtivdec
- * rtspsrc: rtph264depay/rtph265depay, h264parse/h265parse, capfilter, qtivdec
+ * filesrc(video only): qtdemux, multiqueue, h264parse/h265parse, capfilter, qtivdec
+ * rtspsrc(video only): rtph264depay/rtph265depay, h264parse/h265parse, capfilter, qtivdec
+ * souphttpsrc(both video/audio): queue, matroskademux, multiqueue, qtivdec, vorbisdec
  * so we have chance to configure it.
  */
 static void
@@ -65,20 +66,18 @@ cb_decodebin_child_added (
 
     LOG_INFO_MSG ("Element '%s' added to decodebin", name);
 
-    if (g_strrstr (name, "qtdemux") == name) {
-        vp->m_demux = reinterpret_cast<GstElement*> (object);
+    {
         /*
-         * can't get h264parse sink pad and throw segement fault
-         * guess decodebin create h264parse in another thread
-         * and we can't get info of it at this time
-         */
-        // g_signal_connect (G_OBJECT (object), "pad-added",
-        //     G_CALLBACK (cb_qtdemux_pad_added), vp);
-    }
+            uridecodebin create demux automatically and expose them to different src-pad,
+            developor should link them by themselves
+        */
+        if (g_strrstr (name, "qtdemux") == name) {
+            vp->m_demux = reinterpret_cast<GstElement*> (object);
+        }
 
-    if ((g_strrstr (name, "h264parse") == name)) {
-        vp->m_h264parse = reinterpret_cast<GstElement*> (object);
-        LOG_INFO_MSG ("h264parse address: %p", vp->m_h264parse);
+        if ((g_strrstr (name, "h264parse") == name)) {
+            vp->m_h264parse = reinterpret_cast<GstElement*> (object);
+        }
     }
 
     if (g_strrstr (name, "qtivdec") == name) {
@@ -101,22 +100,22 @@ static void cb_uridecodebin_source_setup (
     LOG_INFO_MSG ("cb_uridecodebin_source_setup called");
 
     /* Configure rtspsrc
-    if (g_object_class_find_property (G_OBJECT_GET_CLASS (source), "latency")) {
-        LOG_INFO_MSG ("cb_uridecodebin_source_setup set %d latency",
-            vp->m_config.rtsp_latency);
-        g_object_set (G_OBJECT (source), "latency", vp->m_config.rtsp_latency, NULL);
-    }
+        if (g_object_class_find_property (G_OBJECT_GET_CLASS (source), "latency")) {
+            LOG_INFO_MSG ("cb_uridecodebin_source_setup set %d latency",
+                vp->m_config.rtsp_latency);
+            g_object_set (G_OBJECT (source), "latency", vp->m_config.rtsp_latency, NULL);
+        }
     */
 
    /* Configure appsrc
-    GstCaps *m_sCaps;
-    src_Caps = gst_caps_new_simple ("video/x-raw", "format", G_TYPE_STRING,
-        m_config.src_format.c_str(), "width", G_TYPE_INT, m_config.src_width,
-          "height", G_TYPE_INT, m_config.src_height, NULL);
-    g_object_set (G_OBJECT(source), "caps", src_Caps, NULL);
-    g_signal_connect (source, "need-data", G_CALLBACK (start_feed), data);
-    g_signal_connect (source, "enough-data", G_CALLBACK (stop_feed), data);
-    gst_caps_unref (src_Caps);
+        GstCaps *m_sCaps;
+        src_Caps = gst_caps_new_simple ("video/x-raw", "format", G_TYPE_STRING,
+            m_config.src_format.c_str(), "width", G_TYPE_INT, m_config.src_width,
+            "height", G_TYPE_INT, m_config.src_height, NULL);
+        g_object_set (G_OBJECT(source), "caps", src_Caps, NULL);
+        g_signal_connect (source, "need-data", G_CALLBACK (start_feed), data);
+        g_signal_connect (source, "enough-data", G_CALLBACK (stop_feed), data);
+        gst_caps_unref (src_Caps);
    */
 }
 
@@ -139,7 +138,7 @@ static void cb_uridecodebin_pad_added (
     new_pad_type = gst_structure_get_name (new_pad_struct);
 
     if (g_str_has_prefix (new_pad_type, "video/x-raw")) {
-        LOG_WARN_MSG ("Linking video/x-raw");
+        LOG_INFO_MSG ("Linking video/x-raw");
         /* Attempt the link */
         v_sinkpad = gst_element_get_static_pad (
                         reinterpret_cast<GstElement*> (vp->m_display), "sink");
@@ -149,6 +148,7 @@ static void cb_uridecodebin_pad_added (
             goto exit;
         }
     } else if (g_str_has_prefix (new_pad_type, "audio/x-raw")) {
+        LOG_INFO_MSG ("Linking audio/x-raw");
         a_sinkpad = gst_element_get_static_pad (
                         reinterpret_cast<GstElement*> (vp->m_audioConv), "sink");
         ret = gst_pad_link (new_pad, a_sinkpad);
@@ -239,7 +239,7 @@ bool VideoPipeline::Create (void)
     }
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_player, NULL);
 
-    g_object_set (G_OBJECT (m_player), "volumn", 1.0, NULL);
+    g_object_set (G_OBJECT (m_player), "volume", 1.0, NULL);
 
     return true;
 

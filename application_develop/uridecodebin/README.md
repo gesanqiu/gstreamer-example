@@ -3,8 +3,8 @@
  * @version: 1.0
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 08:09:29
- * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-09-01 13:25:46
+ * @LastEditors: Please set LastEditors
+ * @LastEditTime: 2021-09-03 23:55:45
 -->
 # uridecodebin
 
@@ -27,5 +27,8 @@ make
 
 # rtspsrc
 ./uridecoderbin --srcuri rtsp://admin:ZKCD1234@10.0.23.227:554
+
+# souphttpsrc
+./uridecoderbin --srcuri https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm
 ```
 **注：**`uridecodebin`的`uri`属性必须是绝对路径。
