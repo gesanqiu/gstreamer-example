@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 12:01:39
  * @LastEditors: Please set LastEditors
- * @LastEditTime: 2021-09-03 23:27:08
+ * @LastEditTime: 2021-09-03 23:32:44
  */
 
 #include "VideoPipeline.h"
@@ -225,7 +225,7 @@ bool VideoPipeline::Create (void)
         LOG_ERROR_MSG ("Failed to create element audioconvert named audioconv");
         goto exit;
     }
-    gst_bin_add_many (GST_BIN (m_gstPipeline), m_display, NULL);
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_audioConv, NULL);
 
     if (!(m_audioReSample = gst_element_factory_make ("audioresample", "resample"))) {
         LOG_ERROR_MSG ("Failed to create element audioresample named resample");
