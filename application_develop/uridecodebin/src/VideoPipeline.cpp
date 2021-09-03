@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 12:01:39
  * @LastEditors: Please set LastEditors
- * @LastEditTime: 2021-09-03 23:22:02
+ * @LastEditTime: 2021-09-03 23:27:08
  */
 
 #include "VideoPipeline.h"
@@ -66,7 +66,7 @@ cb_decodebin_child_added (
     LOG_INFO_MSG ("Element '%s' added to decodebin", name);
 
     if (g_strrstr (name, "qtdemux") == name) {
-        vp->m_qtdemux = reinterpret_cast<GstElement*> (object);
+        vp->m_demux = reinterpret_cast<GstElement*> (object);
         /*
          * can't get h264parse sink pad and throw segement fault
          * guess decodebin create h264parse in another thread
@@ -82,7 +82,7 @@ cb_decodebin_child_added (
     }
 
     if (g_strrstr (name, "qtivdec") == name) {
-        vp->m_decoder = reinterpret_cast<GstElement*> (object);
+        vp->m_vdecoder = reinterpret_cast<GstElement*> (object);
         g_object_set (object, "turbo", vp->m_config.turbo, NULL);
         g_object_set (object, "skip-frames", vp->m_config.skip_frame, NULL);
     }
@@ -129,10 +129,10 @@ static void cb_uridecodebin_pad_added (
     GstCaps*         new_pad_caps = NULL;
     GstStructure*    new_pad_struct = NULL;
     const gchar*     new_pad_type = NULL;
+    GstPad*          v_sinkpad = NULL;
+    GstPad*          a_sinkpad = NULL;
 
     VideoPipeline* vp = reinterpret_cast<VideoPipeline*> (user_data);
-
-    GstPad* v_sinkpad, a_sinkpad;
 
     new_pad_caps = gst_pad_get_current_caps (new_pad);
     new_pad_struct = gst_caps_get_structure (new_pad_caps, 0);
