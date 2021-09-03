@@ -3,8 +3,8 @@
  * @version: 1.0
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 12:01:39
- * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-09-01 12:51:21
+ * @LastEditors: Please set LastEditors
+ * @LastEditTime: 2021-09-03 23:22:02
  */
 
 #include "VideoPipeline.h"
@@ -132,23 +132,30 @@ static void cb_uridecodebin_pad_added (
 
     VideoPipeline* vp = reinterpret_cast<VideoPipeline*> (user_data);
 
-    GstPad* v_sinkpad = gst_element_get_static_pad (
-                    reinterpret_cast<GstElement*> (vp->m_display), "sink");
+    GstPad* v_sinkpad, a_sinkpad;
 
     new_pad_caps = gst_pad_get_current_caps (new_pad);
     new_pad_struct = gst_caps_get_structure (new_pad_caps, 0);
     new_pad_type = gst_structure_get_name (new_pad_struct);
 
-    if (!g_str_has_prefix (new_pad_type, "video/x-raw")) {
-        LOG_WARN_MSG ("It has type '%s' which is not raw video. Ignoring.",
-            new_pad_type);
-        goto exit;
-    }
-
-    /* Attempt the link */
-    ret = gst_pad_link (new_pad, v_sinkpad);
-    if (GST_PAD_LINK_FAILED (ret)) {
-        LOG_ERROR_MSG ("fail to link qtdemux and h264parse");
+    if (g_str_has_prefix (new_pad_type, "video/x-raw")) {
+        LOG_WARN_MSG ("Linking video/x-raw");
+        /* Attempt the link */
+        v_sinkpad = gst_element_get_static_pad (
+                        reinterpret_cast<GstElement*> (vp->m_display), "sink");
+        ret = gst_pad_link (new_pad, v_sinkpad);
+        if (GST_PAD_LINK_FAILED (ret)) {
+            LOG_ERROR_MSG ("fail to link video source with waylandsink");
+            goto exit;
+        }
+    } else if (g_str_has_prefix (new_pad_type, "audio/x-raw")) {
+        a_sinkpad = gst_element_get_static_pad (
+                        reinterpret_cast<GstElement*> (vp->m_audioConv), "sink");
+        ret = gst_pad_link (new_pad, a_sinkpad);
+        if (GST_PAD_LINK_FAILED (ret)) {
+            LOG_ERROR_MSG ("fail to link audio source and audioconvert");
+            goto exit;
+        }
     }
 
 exit:
@@ -157,7 +164,8 @@ exit:
         gst_caps_unref (new_pad_caps);
 
     /* Unreference the sink pad */
-    gst_object_unref (v_sinkpad);
+    if (v_sinkpad) gst_object_unref (v_sinkpad);
+    if (a_sinkpad) gst_object_unref (a_sinkpad);
 }
 
 static void cb_uridecodebin_child_added (
@@ -212,6 +220,26 @@ bool VideoPipeline::Create (void)
         goto exit;
     }
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_display, NULL);
+
+    if (!(m_audioConv = gst_element_factory_make ("audioconvert", "audioconv"))) {
+        LOG_ERROR_MSG ("Failed to create element audioconvert named audioconv");
+        goto exit;
+    }
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_display, NULL);
+
+    if (!(m_audioReSample = gst_element_factory_make ("audioresample", "resample"))) {
+        LOG_ERROR_MSG ("Failed to create element audioresample named resample");
+        goto exit;
+    }
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_audioReSample, NULL);
+
+    if (!(m_player = gst_element_factory_make ("pulsesink", "player"))) {
+        LOG_ERROR_MSG ("Failed to create element plusesink named player");
+        goto exit;
+    }
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_player, NULL);
+
+    g_object_set (G_OBJECT (m_player), "volumn", 1.0, NULL);
 
     return true;
 

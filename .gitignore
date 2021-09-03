@@ -36,3 +36,6 @@ build/
 
 # MP4 files
 *.mp4
+
+# VS Code config files
+.vscode/

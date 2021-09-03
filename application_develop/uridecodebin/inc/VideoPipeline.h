@@ -3,8 +3,8 @@
  * @version: 1.0
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 08:11:39
- * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-09-01 12:53:17
+ * @LastEditors: Please set LastEditors
+ * @LastEditTime: 2021-09-03 23:22:24
  */
 #pragma once
 
@@ -33,11 +33,14 @@ public:
     GstElement* m_gstPipeline;
 
     GstElement* m_source;
-    GstElement* m_qtdemux;
+    GstElement* m_demux;
     GstElement* m_h264parse;
-    GstElement* m_decoder;
+    GstElement* m_vdecoder;
+    GstElement* m_adecoder;
+    GstElement* m_audioConv;
+    GstElement* m_audioReSample;
     GstElement* m_display;
-    GstElement* m_appsink;
+    GstElement* m_player;
 };
 
 /*
@@ -46,3 +49,10 @@ public:
 * gst-launch-1.0 filesrc location=video.mp4 ! qtdemux ! \
 * multiqueue ! h264parse ! capfilter ! qtivdec ! waylandsink
 */
+
+/*
+ * gst-launch-1.0 \
+ * uridecodebin uri=https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm demux. ! \
+ * queue ! waylandysink demux. ! queue ! audioconvert ! pulsesink volume=1
+ * 
+ */
