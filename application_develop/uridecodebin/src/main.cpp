@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:17:16
  * @LastEditors: Please set LastEditors
- * @LastEditTime: 2021-09-03 23:01:19
+ * @LastEditTime: 2021-09-03 23:28:11
  */
 
 #include <gflags/gflags.h>
@@ -30,7 +30,7 @@ static bool validateSrcUri (const char* name, const std::string& value) {
 
     if (!uri_type.compare ("file:")) {
         struct stat statbuf;
-        if (!stat(vuri_path.c_str(), &statbuf)) {
+        if (!stat(uri_path.c_str(), &statbuf)) {
             LOG_INFO_MSG ("Found config file: %s", value.substr(pos).c_str());
             return true;
         }
