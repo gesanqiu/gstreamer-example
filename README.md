@@ -1,6 +1,6 @@
 # GStreamer-example
 
-[![img](images/Author-@RicardoLu-red.svg)](https://github.com/gesanqiu)![img](images/Version-1.0.0-blue.svg)[![img](images/gstreamer-example.svg)](https://github.com/gesanqiu/gstreamer-example)![img](images/license-GPLv3-000000.svg)
+[![](https://img.shields.io/badge/Auther-@RicardoLu-red.svg)](https://github.com/gesanqiu)![](https://img.shields.io/badge/Version-1.0.0-blue.svg)[![](https://img.shields.io/github/stars/gesanqiu/gstreamer-example.svg?style=social&label=Stars)](https://github.com/gesanqiu/gstreamer-example)
 
 [GStreamer](https://gstreamer.freedesktop.org/documentation/index.html?gi-language=c)是一个非常强大和通用的用于开发流媒体应用程序的框架。GStreamer框架的许多优点都来自于它的模块化：GStreamer可以无缝地合并新的插件模块，但是由于模块化和强大的功能往往以更大的复杂度为代价，开发新的应用程序并不总是简单。
 

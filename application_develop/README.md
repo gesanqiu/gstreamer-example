@@ -1,6 +1,6 @@
 # Application Development
 
-[![img](images/Author-@RicardoLu-red.svg)](https://github.com/gesanqiu)![img](images/Version-1.0.0-blue.svg)[![img](images/gstreamer-example-app.svg)](https://github.com/gesanqiu/gstreamer-example/tree/main/application_develop)![img](images/license-GPLv3-000000.svg)
+[![](https://img.shields.io/badge/Author-@RucardoLu-red.svg)](https://github.com/gesanqiu)![](https://img.shields.io/badge/Version-1.0.0-blue.svg)[![](https://img.shields.io/badge/license-GPL-000000.svg)](https://opensource.org/licenses/GPL-3.0/)
 
 ## 概述
 
@@ -25,7 +25,3 @@ GStreamer作为一个音视频应用开发框架，提供了一个快速开发�
 - 开发框架：GStreamer， OpenCV
 - 第三方库：gflags，json-glib-1.0，glib-2.0
 - 构建工具：[CMake](https://ricardolu.gitbook.io/trantor/cmake-in-action)
-
-## 协议
-
-本章节所有代码均遵守`GPL_v3`开源协议。
