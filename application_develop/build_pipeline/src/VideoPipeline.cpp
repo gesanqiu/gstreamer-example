@@ -9,33 +9,44 @@
 
 #include "VideoPipeline.h"
 
+#ifdef FACTORY_MAKE
 static void cb_qtdemux_pad_added (
     GstElement* src, GstPad* new_pad, gpointer user_data)
 {
+    LOG_INFO_MSG ("cb_uridecodebin_pad_added called");
+
     GstPadLinkReturn ret;
     GstCaps*         new_pad_caps = NULL;
     GstStructure*    new_pad_struct = NULL;
     const gchar*     new_pad_type = NULL;
+    GstPad*          v_sinkpad = NULL;
+    GstPad*          a_sinkpad = NULL;
 
     VideoPipeline* vp = reinterpret_cast<VideoPipeline*> (user_data);
-
-    GstPad* v_sinkpad = gst_element_get_static_pad (
-                    reinterpret_cast<GstElement*> (vp->m_h264parse), "sink");
 
     new_pad_caps = gst_pad_get_current_caps (new_pad);
     new_pad_struct = gst_caps_get_structure (new_pad_caps, 0);
     new_pad_type = gst_structure_get_name (new_pad_struct);
 
-    if (!g_str_has_prefix (new_pad_type, "video/x-h264")) {
-        LOG_WARN_MSG ("It has type '%s' which is not raw video. Ignoring.",
-            new_pad_type);
-        goto exit;
-    }
-
-    /* Attempt the link */
-    ret = gst_pad_link (new_pad, v_sinkpad);
-    if (GST_PAD_LINK_FAILED (ret)) {
-        LOG_ERROR_MSG ("fail to link qtdemux and h264parse");
+    if (g_str_has_prefix (new_pad_type, "video/x-h264")) {
+        LOG_INFO_MSG ("Linking video/x-raw");
+        /* Attempt the link */
+        v_sinkpad = gst_element_get_static_pad (
+                        reinterpret_cast<GstElement*> (vp->m_queue0), "sink");
+        ret = gst_pad_link (new_pad, v_sinkpad);
+        if (GST_PAD_LINK_FAILED (ret)) {
+            LOG_ERROR_MSG ("fail to link video source with waylandsink");
+            goto exit;
+        }
+    } else if (g_str_has_prefix (new_pad_type, "audio/mpeg")) {
+        LOG_INFO_MSG ("Linking audio/x-raw");
+        a_sinkpad = gst_element_get_static_pad (
+                        reinterpret_cast<GstElement*> (vp->m_queue1), "sink");
+        ret = gst_pad_link (new_pad, a_sinkpad);
+        if (GST_PAD_LINK_FAILED (ret)) {
+            LOG_ERROR_MSG ("fail to link audio source and audioconvert");
+            goto exit;
+        }
     }
 
 exit:
@@ -44,8 +55,10 @@ exit:
         gst_caps_unref (new_pad_caps);
 
     /* Unreference the sink pad */
-    gst_object_unref (v_sinkpad);
+    if (v_sinkpad) gst_object_unref (v_sinkpad);
+    if (a_sinkpad) gst_object_unref (a_sinkpad);
 }
+#endif
 
 VideoPipeline::VideoPipeline (const VideoPipelineConfig& config)
 {
@@ -102,26 +115,38 @@ bool VideoPipeline::Create (void)
     }
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_qtdemux, NULL);
 
+    if (!(m_queue0 = gst_element_factory_make ("queue", "queue0"))) {
+        LOG_ERROR_MSG ("Failed to create element queue named queue0");
+        goto exit;
+    }
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_queue0, NULL);
+
+    if (!(m_queue1 = gst_element_factory_make ("queue", "queue1"))) {
+        LOG_ERROR_MSG ("Failed to create element queue named queue1");
+        goto exit;
+    }
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_queue1, NULL);
+
     if (!gst_element_link_many (m_source, m_qtdemux, NULL)) {
         LOG_ERROR_MSG ("Failed to link filesrc->qtdemux");
-            goto exit;
+        goto exit;
     }
 
-    if (!(m_h264parse = gst_element_factory_make ("h264parse", "parse"))) {
-        LOG_ERROR_MSG ("Failed to create element h264parse named parse");
+    if (!(m_h264parse = gst_element_factory_make ("h264parse", "vparse"))) {
+        LOG_ERROR_MSG ("Failed to create element h264parse named vparse");
         goto exit;
     }
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_h264parse, NULL);
 
-    // Link qtdemux with h264parse
+    // Link qtdemux src-pad with queue
     g_signal_connect (m_qtdemux, "pad-added",
         G_CALLBACK(cb_qtdemux_pad_added), reinterpret_cast<void*> (this));
 
-    if (!(m_decoder = gst_element_factory_make ("qtivdec", "decode"))) {
-        LOG_ERROR_MSG ("Failed to create element qtivdec named decode");
+    if (!(m_vdecoder = gst_element_factory_make ("qtivdec", "vdecoder"))) {
+        LOG_ERROR_MSG ("Failed to create element qtivdec named vdecoder");
         goto exit;
     }
-    gst_bin_add_many (GST_BIN (m_gstPipeline), m_decoder, NULL);
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_vdecoder, NULL);
 
     if (!(m_display = gst_element_factory_make ("waylandsink", "display"))) {
         LOG_ERROR_MSG ("Failed to create element waylandsink named display");
@@ -129,9 +154,48 @@ bool VideoPipeline::Create (void)
     }
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_display, NULL);
 
-    if (!gst_element_link_many (m_h264parse, m_decoder, m_display, NULL)) {
-        LOG_ERROR_MSG ("Failed to link h264parse->qtivdec->waylandsink");
-            goto exit;
+    if (!gst_element_link_many (m_queue0, m_h264parse, m_vdecoder, m_display, NULL)) {
+        LOG_ERROR_MSG ("Failed to link queue->h264parse->qtivdec->waylandsink");
+        goto exit;
+    }
+
+    if (!(m_aacparse = gst_element_factory_make ("aacparse", "aparse"))) {
+        LOG_ERROR_MSG ("Failed to create element aacparse named aparse");
+        goto exit;
+    }
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_aacparse, NULL);
+
+    if (!(m_adecoder = gst_element_factory_make ("avdec_aac", "adecoder"))) {
+        LOG_ERROR_MSG ("Failed to create element avdec_aac named adecoder");
+        goto exit;
+    }
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_adecoder, NULL);
+
+    if (!(m_audioConv = gst_element_factory_make ("audioconvert", "audioconv"))) {
+        LOG_ERROR_MSG ("Failed to create element audioconvert named audioconv");
+        goto exit;
+    }
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_audioConv, NULL);
+
+    if (!(m_audioReSample = gst_element_factory_make ("audioresample", "aresample"))) {
+        LOG_ERROR_MSG ("Failed to create element audioresample named aresample");
+        goto exit;
+    }
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_audioReSample, NULL);
+
+    if (!(m_player = gst_element_factory_make ("pulsesink", "player"))) {
+        LOG_ERROR_MSG ("Failed to create element plusesink named player");
+        goto exit;
+    }
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_player, NULL);
+
+    g_object_set (G_OBJECT (m_player), "volume", 1.0, NULL);
+
+    if (!gst_element_link_many (m_queue1, m_aacparse, m_adecoder, m_audioConv,
+            m_audioReSample, m_player, NULL)) {
+        LOG_ERROR_MSG ("Failed to link queue->aacparse->avdec_aac->audioconvert"
+            "->audioresample->pulsesink");
+        goto exit;
     }
 
     return true;

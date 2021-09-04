@@ -39,12 +39,21 @@ public:
 #ifdef FACTORY_MAKE
     GstElement* m_source;
     GstElement* m_qtdemux;
+    GstElement* m_queue0;
+    GstElement* m_queue1;
     GstElement* m_h264parse;
-    GstElement* m_decoder;
+    GstElement* m_vdecoder;
     GstElement* m_display;
+    GstElement* m_aacparse;
+    GstElement* m_adecoder;
+    GstElement* m_audioConv;
+    GstElement* m_audioReSample;
+    GstElement* m_player;
 #endif
 };
 
 /*
-gst-launch-1.0 filesrc location=test.mp4 ! qtdemux ! qtivdec ! waylandsink
+ * gst-launch-1.0 filesrc location=test.mp4 ! qtdemux name=demux demux. ! \
+ * queue ! h264parse ! qtivdec ! waylandsink demux. ! queue ! aacparse ! \
+ * avdec_aac ! audioconvert ! audioresample ! pulsesink volume=1
 */

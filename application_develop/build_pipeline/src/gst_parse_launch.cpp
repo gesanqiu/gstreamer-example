@@ -56,7 +56,9 @@ int main(int argc, char* argv[])
     m_vp = new VideoPipeline(m_vpConfig);
 
     m_pipelineCmd << "filesrc location=" << m_vpConfig.src << " ! ";
-    m_pipelineCmd << "qtdemux ! h264parse ! qtivdec ! waylandsink";
+    m_pipelineCmd << "qtdemux name=demux demux. ! queue ! h264parse ! ";
+    m_pipelineCmd << "qtivdec ! waylandsink demux. ! queue ! aacparse ! ";
+    m_pipelineCmd << "avdec_aac ! audioconvert ! audioresample ! pulsesink";
 
     m_strPipeline = m_pipelineCmd.str();
     m_vp->SetPipeline(m_strPipeline);
