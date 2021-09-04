@@ -83,7 +83,7 @@ bool SrcPipeline::Create (void)
 
     m_transCaps = gst_caps_new_simple ("video/x-raw", "format", G_TYPE_STRING,
         m_config.src_format.c_str(), "width", G_TYPE_INT, m_config.src_width,
-          "height", G_TYPE_INT, m_config.src_height, NULL);
+        "height", G_TYPE_INT, m_config.src_height, NULL);
     // equals to gst_app_src_set_caps (GST_APP_SRC_CAST (m_appsrc), m_transCaps);
     g_object_set (G_OBJECT(m_appsrc), "caps", m_transCaps, NULL);
     gst_caps_unref (m_transCaps); 
@@ -115,7 +115,7 @@ bool SrcPipeline::Create (void)
 
     m_transCaps = gst_caps_new_simple ("video/x-raw", "format", G_TYPE_STRING,
         m_config.conv_format.c_str(), "width", G_TYPE_INT, m_config.conv_width,
-          "height", G_TYPE_INT, m_config.conv_height, NULL);
+        "height", G_TYPE_INT, m_config.conv_height, NULL);
 
     if (!(m_capfilter = gst_element_factory_make("capsfilter", "capfilter"))) {
         LOG_ERROR_MSG ("Failed to create element capsfilter named capfilter");
@@ -136,7 +136,7 @@ bool SrcPipeline::Create (void)
     if (!gst_element_link_many (m_appsrc, m_videoconv,
             m_capfilter,m_display, NULL)) {
         LOG_ERROR_MSG ("Failed to link h264parse->qtivdec->waylandsink");
-            goto exit;
+        goto exit;
     }
 
     return true;

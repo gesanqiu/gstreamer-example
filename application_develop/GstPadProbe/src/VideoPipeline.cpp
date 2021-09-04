@@ -194,7 +194,7 @@ bool VideoPipeline::Create (void)
 
     if (!gst_element_link_many (m_source, m_qtdemux, NULL)) {
         LOG_ERROR_MSG ("Failed to link filesrc->qtdemux");
-            goto exit;
+        goto exit;
     }
 
     if (!(m_h264parse = gst_element_factory_make ("h264parse", "parse"))) {
@@ -241,7 +241,7 @@ bool VideoPipeline::Create (void)
             m_queue0, m_display, NULL)) {
         LOG_ERROR_MSG ("Failed to link h264parse->qtivdec"
             "->tee->queue0->waylandsink");
-            goto exit;
+        goto exit;
     }
 
     if (!(m_queue1 = gst_element_factory_make ("queue", "queue1"))) {
@@ -258,7 +258,7 @@ bool VideoPipeline::Create (void)
 
     m_transCaps = gst_caps_new_simple ("video/x-raw", "format", G_TYPE_STRING,
         m_config.conv_format.c_str(), "width", G_TYPE_INT, m_config.conv_width,
-          "height", G_TYPE_INT, m_config.conv_height, NULL);
+        "height", G_TYPE_INT, m_config.conv_height, NULL);
 
     if (!(m_capfilter = gst_element_factory_make("capsfilter", "capfilter"))) {
         LOG_ERROR_MSG ("Failed to create element capsfilter named capfilter");
@@ -286,7 +286,7 @@ bool VideoPipeline::Create (void)
             m_capfilter, m_appsink, NULL)) {
         LOG_ERROR_MSG ("Failed to link tee->queue1->"
             "qtivtransform->capfilter->appsink");
-            goto exit;
+        goto exit;
     }
 
     return true;

@@ -23,10 +23,10 @@ cd build
 make
 
 # filesrc
-./uridecoderbin --srcuri file:///home/tc-eb5/local/gstreamer-example/application_develop/video.mp4
+./uridecoderbin --srcuri file:///user/local/gstreamer-example/application_develop/video.mp4
 
 # rtspsrc
-./uridecoderbin --srcuri rtsp://admin:ZKCD1234@10.0.23.227:554
+./uridecoderbin --srcuri rtsp://admin:1234@10.0.23.227:554
 
 # souphttpsrc
 ./uridecoderbin --srcuri https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm
