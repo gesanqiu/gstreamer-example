@@ -37,9 +37,10 @@ public:
     GstElement* m_h264parse;
     GstElement* m_vdecoder;
     GstElement* m_adecoder;
+    GstElement* m_videoConv;
+    GstElement* m_display;
     GstElement* m_audioConv;
     GstElement* m_audioReSample;
-    GstElement* m_display;
     GstElement* m_player;
 };
 
@@ -52,7 +53,7 @@ public:
 
 /*
  * gst-launch-1.0 \
- * uridecodebin uri=https://www.freedesktop.org/software/gstreamer-sdk/data/media/sintel_trailer-480p.webm demux. ! \
- * queue ! waylandysink demux. ! queue ! audioconvert ! pulsesink volume=1
+ * uridecodebin uri=file:///absolute/path/video.mp4 demux. ! \
+ * queue ! videoconvert ! waylandysink demux. ! queue ! audioconvert ! pulsesink volume=1
  * 
  */

@@ -9,46 +9,6 @@
 
 #include "VideoPipeline.h"
 
-static void cb_qtdemux_pad_added (
-    GstElement* src, GstPad* new_pad, gpointer user_data)
-{
-    GstPadLinkReturn ret;
-    GstCaps*         new_pad_caps = NULL;
-    GstStructure*    new_pad_struct = NULL;
-    const gchar*     new_pad_type = NULL;
-
-    LOG_INFO_MSG ("cb_qtdemux_pad_added called");
-
-    VideoPipeline* vp = reinterpret_cast<VideoPipeline*> (user_data);
-
-    GstPad* v_sinkpad = gst_element_get_static_pad (
-                    reinterpret_cast<GstElement*> (vp->m_h264parse), "sink");
-
-    new_pad_caps = gst_pad_get_current_caps (new_pad);
-    new_pad_struct = gst_caps_get_structure (new_pad_caps, 0);
-    new_pad_type = gst_structure_get_name (new_pad_struct);
-
-    if (!g_str_has_prefix (new_pad_type, "video/x-h264")) {
-        LOG_WARN_MSG ("It has type '%s' which is not raw video. Ignoring.",
-            new_pad_type);
-        goto exit;
-    }
-
-    /* Attempt the link */
-    ret = gst_pad_link (new_pad, v_sinkpad);
-    if (GST_PAD_LINK_FAILED (ret)) {
-        LOG_ERROR_MSG ("fail to link qtdemux and h264parse");
-    }
-
-exit:
-    /* Unreference the new pad's caps, if we got them */
-    if (new_pad_caps != NULL)
-        gst_caps_unref (new_pad_caps);
-
-    /* Unreference the sink pad */
-    gst_object_unref (v_sinkpad);
-}
-
 /* 
  * This function is called when decodebin has created the decode element, 
  * filesrc(video only): qtdemux, multiqueue, h264parse/h265parse, capfilter, qtivdec
@@ -141,7 +101,7 @@ static void cb_uridecodebin_pad_added (
         LOG_INFO_MSG ("Linking video/x-raw");
         /* Attempt the link */
         v_sinkpad = gst_element_get_static_pad (
-                        reinterpret_cast<GstElement*> (vp->m_display), "sink");
+                        reinterpret_cast<GstElement*> (vp->m_videoConv), "sink");
         ret = gst_pad_link (new_pad, v_sinkpad);
         if (GST_PAD_LINK_FAILED (ret)) {
             LOG_ERROR_MSG ("fail to link video source with waylandsink");
@@ -215,11 +175,22 @@ bool VideoPipeline::Create (void)
 
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_source, NULL);
 
+    if (!(m_videoConv = gst_element_factory_make ("videoconvert", "videoconv"))) {
+        LOG_ERROR_MSG ("Failed to create element videoconvert named videoconvert");
+        goto exit;
+    }
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_videoConv, NULL);
+
     if (!(m_display = gst_element_factory_make ("waylandsink", "display"))) {
         LOG_ERROR_MSG ("Failed to create element waylandsink named display");
         goto exit;
     }
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_display, NULL);
+
+    if (!gst_element_link_many (m_videoConv, m_display, NULL)) {
+        LOG_ERROR_MSG ("Failed to link videoconvert->waylandsink");
+        goto exit;
+    }
 
     if (!(m_audioConv = gst_element_factory_make ("audioconvert", "audioconv"))) {
         LOG_ERROR_MSG ("Failed to create element audioconvert named audioconv");
@@ -240,6 +211,11 @@ bool VideoPipeline::Create (void)
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_player, NULL);
 
     g_object_set (G_OBJECT (m_player), "volume", 1.0, NULL);
+
+    if (!gst_element_link_many (m_audioConv, m_audioReSample, m_player, NULL)) {
+        LOG_ERROR_MSG ("Failed to link audioconvert->audioresample->pulsesink");
+        goto exit;
+    }
 
     return true;
 
