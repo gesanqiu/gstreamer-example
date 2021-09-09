@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 08:11:39
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-09-01 11:45:50
+ * @LastEditTime: 2021-09-09 13:18:28
  */
 #pragma once
 
@@ -47,10 +47,12 @@ public:
 
     GstElement* m_source;
     GstElement* m_qtdemux;
+    GstElement* m_rtph264depay;
     GstElement* m_h264parse;
     GstElement* m_decoder;
     GstElement* m_tee;
     GstElement* m_queue0;
+    GstElement* m_qtioverlay;
     GstElement* m_display;
     GstElement* m_queue1;
     GstElement* m_qtivtrans;
@@ -60,6 +62,6 @@ public:
 
 /*
 gst-launch-1.0 filesrc location=video.mp4 ! qtdemux ! h264parse ! qtivdec ! 
-tee name=t1 t1. ! queue ! waylandsink t1. ! queue ! qtivtransform ! 
+tee name=t1 t1. ! queue ! qtioverlay meta-color=true ! waylandsink t1. ! queue ! qtivtransform ! 
 video/x-raw,format=BGR,width=1920,height=1080 ! appsink
 */

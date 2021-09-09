@@ -43,4 +43,5 @@ target_link_libraries(${PROJECT_NAME}
     ${GLIB_LIBRARIES}
     ${GFLAGS_LIBRARIES}
     ${OpenCV_LIBRARIES}
+    qtimlmeta
 )

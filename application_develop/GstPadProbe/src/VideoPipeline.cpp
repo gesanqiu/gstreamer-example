@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 12:01:39
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-09-01 12:42:10
+ * @LastEditTime: 2021-09-09 13:21:20
  */
 
 #include "VideoPipeline.h"
@@ -19,22 +19,12 @@ static GstPadProbeReturn cb_queue0_probe (
     VideoPipeline* vp = reinterpret_cast<VideoPipeline*> (user_data);
     GstBuffer* buffer = (GstBuffer*) info->data;
 
-    // sync
-    // if (info->type & GST_PAD_PROBE_TYPE_BUFFER) {
-    //     g_mutex_lock (&vp->wait_lock_);
-    //     while (g_atomic_int_get (&vp->sync_count_) <= 0)
-    //         g_cond_wait (&vp->wait_cond_, &vp->wait_lock_);
-    //     if (!g_atomic_int_dec_and_test (&vp->sync_count_)) {
-    //         // LOG_INFO_MSG ("sync_count_:%d", vp->sync_count_);
-    //     }
-    //     g_mutex_unlock (&vp->wait_lock_);
-    // }
-
     // osd the result
     if (vp->m_getResultFunc) {
         const std::shared_ptr<cv::Rect> result =
             vp->m_getResultFunc (vp->m_getResultArgs);
         if (result && vp->m_procDataFunc) {
+            LOG_INFO_MSG ("probe buffer %s write", gst_buffer_is_writable (buffer) ? "can":"can't");
             vp->m_procDataFunc (buffer, result);
         }
     }
@@ -229,7 +219,14 @@ bool VideoPipeline::Create (void)
     m_gstPad = gst_element_get_static_pad (m_queue0, "src");
     m_queue0_probe = gst_pad_add_probe (m_gstPad, (GstPadProbeType) (
                         GST_PAD_PROBE_TYPE_BUFFER), cb_queue0_probe, this, NULL);
-    gst_object_unref (m_gstPad);    
+    gst_object_unref (m_gstPad);
+
+    if (!(m_qtioverlay = gst_element_factory_make ("qtioverlay", "overlay"))) {
+        LOG_ERROR_MSG ("Failed to create element qtioverlay named overlay");
+        goto exit;
+    }
+    g_object_set (G_OBJECT (m_qtioverlay), "meta-color", true, NULL);
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_qtioverlay, NULL);
 
     if (!(m_display = gst_element_factory_make ("waylandsink", "display"))) {
         LOG_ERROR_MSG ("Failed to create element waylandsink named display");
@@ -238,7 +235,7 @@ bool VideoPipeline::Create (void)
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_display, NULL);
 
     if (!gst_element_link_many (m_h264parse, m_decoder, m_tee, 
-            m_queue0, m_display, NULL)) {
+            m_queue0, m_qtioverlay, m_display, NULL)) {
         LOG_ERROR_MSG ("Failed to link h264parse->qtivdec"
             "->tee->queue0->waylandsink");
         goto exit;

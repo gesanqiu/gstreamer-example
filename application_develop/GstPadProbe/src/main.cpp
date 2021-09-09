@@ -4,13 +4,14 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:17:16
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-08-29 13:37:20
+ * @LastEditTime: 2021-09-09 13:07:27
  */
 
 #include <gflags/gflags.h>
 #include <sys/stat.h>
 #include <iostream>
 #include <sstream>
+#include <qrb5165/ml-meta/ml_meta.h>
 
 #include "VideoPipeline.h"
 #include "DoubleBufferCache.h"
@@ -21,6 +22,22 @@ static bool validateSrcUri (const char* name, const std::string& value) {
     if (!value.compare("")) {
         LOG_ERROR_MSG ("Source Uri required!");
         return false;
+    }
+
+    std::size_t pos = value.find("//");
+    if (pos != std::string::npos) {
+        std::string uri_type = value.substr(0, pos - 1);
+        std::string uri_path = value.substr(pos);
+
+        if (!uri_type.compare ("file:")) {  // make sure file exist.
+            struct stat statbuf;
+            if (!stat(uri_path.c_str(), &statbuf)) {
+                LOG_INFO_MSG ("Found config file: %s", value.substr(pos).c_str());
+                return true;
+            }
+        } else {
+            return true;
+        }
     }
 
     struct stat statbuf;
@@ -79,12 +96,41 @@ std::shared_ptr<cv::Mat> getData (void* user_data)
 
 std::shared_ptr<cv::Rect> getResult(void* user_data)
 {
+    LOG_INFO_MSG ("getResult called");
+    cv::Rect rect (110, 110, 1720, 880);
 
+    return std::make_shared<cv::Rect> (rect);
 }
 
+// draw rectangle and text on NV12 with qtioverlay meta data.
 void procData(GstBuffer* buffer, const std::shared_ptr<cv::Rect>& rect)
 {
+    LOG_INFO_MSG ("procData called");
+    std::string osd_text ("queue0_probe");
 
+    GstMLDetectionMeta* meta = gst_buffer_add_detection_meta(buffer);
+
+    if (!meta) {
+        LOG_ERROR_MSG ("Failed to create metadata");
+        return ;
+    }
+
+    GstMLClassificationResult *box_info = (GstMLClassificationResult*)malloc(
+        sizeof(GstMLClassificationResult));
+
+    uint32_t label_size = osd_text.size() + 1;
+    box_info->name = (char *)malloc(label_size);
+    snprintf(box_info->name, label_size, "%s", osd_text.c_str());
+
+    meta->box_info = g_slist_append (meta->box_info, box_info);
+
+    meta->bbox_color = (200 << 24) + (0 << 16) + (0 << 8) + 0xFF;
+
+    meta->bounding_box.x = rect->x;
+    meta->bounding_box.y = rect->y;
+
+    meta->bounding_box.width = rect->width;
+    meta->bounding_box.height = rect->height;
 }
 
 int main(int argc, char* argv[])
