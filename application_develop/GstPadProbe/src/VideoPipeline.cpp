@@ -4,10 +4,44 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 12:01:39
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-09-09 13:21:20
+ * @LastEditTime: 2021-09-09 14:43:25
  */
 
 #include "VideoPipeline.h"
+
+static GstPadProbeReturn cb_sync_before_buffer_probe (
+    GstPad* pad,
+    GstPadProbeInfo* info,
+    gpointer user_data)
+{
+    //LOG_INFO_MSG ("cb_sync_before_buffer_probe called");
+
+    VideoPipeline* vp = reinterpret_cast<VideoPipeline*> (user_data);
+    GstBuffer* buffer = (GstBuffer*) info->data;
+
+    return GST_PAD_PROBE_OK;
+}
+
+static GstPadProbeReturn cb_sync_buffer_probe (
+    GstPad* pad,
+    GstPadProbeInfo* info,
+    gpointer user_data)
+{
+    //LOG_INFO_MSG ("cb_sync_buffer_probe called");
+
+    VideoPipeline* vp = reinterpret_cast<VideoPipeline*> (user_data);
+    GstBuffer* buffer = (GstBuffer*) info->data;
+
+    // sync
+    if (info->type & GST_PAD_PROBE_TYPE_BUFFER) {
+        g_mutex_lock (&vp->wait_lock_);
+        g_atomic_int_inc (&vp->sync_count_);
+        g_cond_signal (&vp->wait_cond_);
+        g_mutex_unlock (&vp->wait_lock_);
+    }
+
+    return GST_PAD_PROBE_OK;
+}
 
 static GstPadProbeReturn cb_queue0_probe (
     GstPad* pad, 
@@ -19,12 +53,23 @@ static GstPadProbeReturn cb_queue0_probe (
     VideoPipeline* vp = reinterpret_cast<VideoPipeline*> (user_data);
     GstBuffer* buffer = (GstBuffer*) info->data;
 
+    // sync
+    if (info->type & GST_PAD_PROBE_TYPE_BUFFER && !vp->exiting_) {
+        g_mutex_lock (&vp->wait_lock_);
+        while (g_atomic_int_get (&vp->sync_count_) <= 0)
+            g_cond_wait (&vp->wait_cond_, &vp->wait_lock_);
+        if (!g_atomic_int_dec_and_test (&vp->sync_count_)) {
+            //LOG_INFO_MSG ("sync_count_:%d/%d", vp->sync_count_,
+            //    vp->pipeline_id_);
+        }
+        g_mutex_unlock (&vp->wait_lock_);
+    }
+
     // osd the result
     if (vp->m_getResultFunc) {
         const std::shared_ptr<cv::Rect> result =
             vp->m_getResultFunc (vp->m_getResultArgs);
         if (result && vp->m_procDataFunc) {
-            LOG_INFO_MSG ("probe buffer %s write", gst_buffer_is_writable (buffer) ? "can":"can't");
             vp->m_procDataFunc (buffer, result);
         }
     }
@@ -109,6 +154,58 @@ exit:
     return GST_FLOW_OK;
 }
 
+#ifdef RTSP_SOURCE
+static void cb_rtspsrc_pad_added (
+    GstElement *src, GstPad *new_pad, gpointer user_data)
+{
+    GstPadLinkReturn ret;
+	GstCaps *new_pad_caps = NULL;
+	GstStructure *new_pad_struct = NULL;
+	const gchar *new_pad_type = NULL;
+
+	VideoPipeline* vp = reinterpret_cast<VideoPipeline*> (user_data);
+
+    GstPad* sink_pad = gst_element_get_static_pad (
+                    reinterpret_cast<GstElement*> (vp->m_rtph264depay), "sink");
+
+	LOG_INFO_MSG ("Received new pad '%s' from '%s':", GST_PAD_NAME (new_pad),
+        GST_ELEMENT_NAME (src));
+
+	/* Check the new pad's name */
+	if (!g_str_has_prefix (GST_PAD_NAME(new_pad), "recv_rtp_src_")) {
+		LOG_ERROR_MSG ("It is not the right pad.  Need recv_rtp_src_. Ignoring.");
+		goto exit;
+	}
+
+	/* If our converter is already linked, we have nothing to do here */
+	if (gst_pad_is_linked(sink_pad)) {
+		LOG_ERROR_MSG (" Sink pad from %s already linked. Ignoring.\n",
+            GST_ELEMENT_NAME (src));
+		goto exit;
+	}
+
+	/* Check the new pad's type */
+	new_pad_caps = gst_pad_query_caps(new_pad, NULL);
+	new_pad_struct = gst_caps_get_structure(new_pad_caps, 0);
+	new_pad_type = gst_structure_get_name(new_pad_struct);
+
+	/* Attempt the link */
+	ret = gst_pad_link(new_pad, sink_pad);
+	if (GST_PAD_LINK_FAILED (ret)) {
+		LOG_ERROR_MSG ("Fail to link rtspsrc and rtph264depay");
+	}
+
+exit:
+	/* Unreference the new pad's caps, if we got them */
+	if (new_pad_caps != NULL)
+		gst_caps_unref(new_pad_caps);
+
+	/* Unreference the sink pad */
+	gst_object_unref(sink_pad);
+}
+#endif
+
+#ifdef FILE_SOURCE
 static void cb_qtdemux_pad_added (
     GstElement* src, GstPad* new_pad, gpointer user_data)
 {
@@ -135,7 +232,7 @@ static void cb_qtdemux_pad_added (
     /* Attempt the link */
     ret = gst_pad_link (new_pad, v_sinkpad);
     if (GST_PAD_LINK_FAILED (ret)) {
-        LOG_ERROR_MSG ("fail to link qtdemux and h264parse");
+        LOG_ERROR_MSG ("Fail to link qtdemux and h264parse");
     }
 
 exit:
@@ -146,10 +243,16 @@ exit:
     /* Unreference the sink pad */
     gst_object_unref (v_sinkpad);
 }
+#endif
 
 VideoPipeline::VideoPipeline (const VideoPipelineConfig& config)
 {
     m_config = config;
+    sync_count_ = 0;
+    exiting_ = false;
+    g_mutex_init (&wait_lock_);
+    g_cond_init  (&wait_cond_);
+    g_mutex_init (&lock_);
 }
 
 VideoPipeline::~VideoPipeline ()
@@ -168,6 +271,25 @@ bool VideoPipeline::Create (void)
     }
     gst_pipeline_set_auto_flush_bus (GST_PIPELINE (m_gstPipeline), true);
 
+#ifdef RTSP_SOURCE
+    if (!(m_source = gst_element_factory_make ("rtspsrc", "src"))) {
+        LOG_ERROR_MSG ("Failed to create element rtspsrc named src");
+        goto exit;
+    }
+    g_object_set (G_OBJECT (m_source), "location",
+            m_config.src.c_str(), NULL);
+    g_signal_connect(GST_OBJECT (m_source), "pad-added",
+        G_CALLBACK(cb_rtspsrc_pad_added), reinterpret_cast<void*> (this));
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_source, NULL);
+
+    if (!(m_rtph264depay = gst_element_factory_make ("rtph264depay", "depay"))) {
+        LOG_ERROR_MSG ("Failed to create element rtph264depay named depay");
+        goto exit;
+    }
+    gst_bin_add_many (GST_BIN (m_gstPipeline), m_rtph264depay, NULL);
+#endif
+
+#ifdef FILE_SOURCE
     if (!(m_source = gst_element_factory_make ("filesrc", "src"))) {
         LOG_ERROR_MSG ("Failed to create element filesrc named src");
         goto exit;
@@ -180,22 +302,22 @@ bool VideoPipeline::Create (void)
         LOG_ERROR_MSG ("Failed to create element qtdemux named demux");
         goto exit;
     }
+    // Link qtdemux with h264parse
+    g_signal_connect (m_qtdemux, "pad-added",
+        G_CALLBACK(cb_qtdemux_pad_added), reinterpret_cast<void*> (this));
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_qtdemux, NULL);
 
     if (!gst_element_link_many (m_source, m_qtdemux, NULL)) {
         LOG_ERROR_MSG ("Failed to link filesrc->qtdemux");
         goto exit;
     }
+#endif
 
     if (!(m_h264parse = gst_element_factory_make ("h264parse", "parse"))) {
         LOG_ERROR_MSG ("Failed to create element h264parse named parse");
         goto exit;
     }
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_h264parse, NULL);
-
-    // Link qtdemux with h264parse
-    g_signal_connect (m_qtdemux, "pad-added",
-        G_CALLBACK(cb_qtdemux_pad_added), reinterpret_cast<void*> (this));
 
     if (!(m_decoder = gst_element_factory_make ("qtivdec", "decode"))) {
         LOG_ERROR_MSG ("Failed to create element qtivdec named decode");
@@ -218,7 +340,8 @@ bool VideoPipeline::Create (void)
     // add probe to queue0
     m_gstPad = gst_element_get_static_pad (m_queue0, "src");
     m_queue0_probe = gst_pad_add_probe (m_gstPad, (GstPadProbeType) (
-                        GST_PAD_PROBE_TYPE_BUFFER), cb_queue0_probe, this, NULL);
+                        GST_PAD_PROBE_TYPE_BUFFER), cb_queue0_probe, 
+                        reinterpret_cast<void*> (this), NULL);
     gst_object_unref (m_gstPad);
 
     if (!(m_qtioverlay = gst_element_factory_make ("qtioverlay", "overlay"))) {
@@ -234,12 +357,23 @@ bool VideoPipeline::Create (void)
     }
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_display, NULL);
 
+#ifdef RTSP_SOURCE
+    if (!gst_element_link_many (m_rtph264depay, m_h264parse, m_decoder,
+            m_tee, m_queue0, m_qtioverlay, m_display, NULL)) {
+        LOG_ERROR_MSG ("Failed to link rtph264depay->h264parse->qtivdec"
+            "->tee->queue0->qtioverlay->waylandsink");
+        goto exit;
+    }
+#endif
+
+#ifdef FILE_SOURCE
     if (!gst_element_link_many (m_h264parse, m_decoder, m_tee, 
             m_queue0, m_qtioverlay, m_display, NULL)) {
         LOG_ERROR_MSG ("Failed to link h264parse->qtivdec"
-            "->tee->queue0->waylandsink");
+            "->tee->queue0->qtioverlay->waylandsink");
         goto exit;
     }
+#endif
 
     if (!(m_queue1 = gst_element_factory_make ("queue", "queue1"))) {
         LOG_ERROR_MSG ("Failed to create element queue named queue1");
@@ -266,6 +400,18 @@ bool VideoPipeline::Create (void)
     gst_caps_unref (m_transCaps);
 
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_capfilter, NULL);
+    
+    m_gstPad = gst_element_get_static_pad (m_qtivtrans, "sink");
+    m_queue0_probe = gst_pad_add_probe (m_gstPad, (GstPadProbeType) (
+                        GST_PAD_PROBE_TYPE_BUFFER), cb_sync_before_buffer_probe, 
+                        reinterpret_cast<void*> (this), NULL);
+    gst_object_unref (m_gstPad);
+
+    m_gstPad = gst_element_get_static_pad (m_qtivtrans, "src");
+    m_queue0_probe = gst_pad_add_probe (m_gstPad, (GstPadProbeType) (
+                        GST_PAD_PROBE_TYPE_BUFFER), cb_sync_buffer_probe, 
+                        reinterpret_cast<void*> (this), NULL);
+    gst_object_unref (m_gstPad);
 
     if (!(m_appsink = gst_element_factory_make ("appsink", "appsink"))) {
         LOG_ERROR_MSG ("Failed to create element appsink named appsink");

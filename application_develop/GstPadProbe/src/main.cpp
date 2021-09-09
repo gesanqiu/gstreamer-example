@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:17:16
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-09-09 13:07:27
+ * @LastEditTime: 2021-09-09 14:48:48
  */
 
 #include <gflags/gflags.h>
@@ -24,6 +24,7 @@ static bool validateSrcUri (const char* name, const std::string& value) {
         return false;
     }
 
+    // for absolute path
     std::size_t pos = value.find("//");
     if (pos != std::string::npos) {
         std::string uri_type = value.substr(0, pos - 1);
@@ -40,6 +41,7 @@ static bool validateSrcUri (const char* name, const std::string& value) {
         }
     }
 
+    // for relative path
     struct stat statbuf;
     if (!stat(value.c_str(), &statbuf)) {
         LOG_INFO_MSG ("Found config file: %s", value.c_str());

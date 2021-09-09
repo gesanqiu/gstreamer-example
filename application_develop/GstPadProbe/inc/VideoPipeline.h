@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 08:11:39
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-09-09 13:18:28
+ * @LastEditTime: 2021-09-09 14:28:20
  */
 #pragma once
 
@@ -44,6 +44,12 @@ public:
 
     VideoPipelineConfig m_config;
     GstElement* m_gstPipeline;
+
+    volatile gint sync_count_;
+    volatile gboolean exiting_;
+    GMutex   wait_lock_;
+    GCond    wait_cond_;
+    GMutex   lock_;
 
     GstElement* m_source;
     GstElement* m_qtdemux;
