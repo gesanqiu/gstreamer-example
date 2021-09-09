@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-28 09:17:16
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-09-09 13:07:27
+ * @LastEditTime: 2021-09-10 03:21:58
  */
 
 #include <gflags/gflags.h>
@@ -24,6 +24,7 @@ static bool validateSrcUri (const char* name, const std::string& value) {
         return false;
     }
 
+    // for absolute path
     std::size_t pos = value.find("//");
     if (pos != std::string::npos) {
         std::string uri_type = value.substr(0, pos - 1);
@@ -40,6 +41,7 @@ static bool validateSrcUri (const char* name, const std::string& value) {
         }
     }
 
+    // for relative path
     struct stat statbuf;
     if (!stat(value.c_str(), &statbuf)) {
         LOG_INFO_MSG ("Found config file: %s", value.c_str());
@@ -96,7 +98,7 @@ std::shared_ptr<cv::Mat> getData (void* user_data)
 
 std::shared_ptr<cv::Rect> getResult(void* user_data)
 {
-    LOG_INFO_MSG ("getResult called");
+    // LOG_INFO_MSG ("getResult called");
     cv::Rect rect (110, 110, 1720, 880);
 
     return std::make_shared<cv::Rect> (rect);
@@ -105,7 +107,7 @@ std::shared_ptr<cv::Rect> getResult(void* user_data)
 // draw rectangle and text on NV12 with qtioverlay meta data.
 void procData(GstBuffer* buffer, const std::shared_ptr<cv::Rect>& rect)
 {
-    LOG_INFO_MSG ("procData called");
+    // LOG_INFO_MSG ("procData called");
     std::string osd_text ("queue0_probe");
 
     GstMLDetectionMeta* meta = gst_buffer_add_detection_meta(buffer);
@@ -153,8 +155,8 @@ int main(int argc, char* argv[])
 
     m_vpConfig.src = FLAGS_srcuri;
     m_vpConfig.conv_format = "BGR";
-    m_vpConfig.conv_width = 1920;
-    m_vpConfig.conv_height = 1080;
+    m_vpConfig.conv_width = 960;
+    m_vpConfig.conv_height = 540;
 
     m_vp = new VideoPipeline(m_vpConfig);
 

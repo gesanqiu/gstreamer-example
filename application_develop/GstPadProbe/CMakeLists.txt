@@ -32,6 +32,17 @@ link_directories(
     ${OpenCV_LIBRARY_DIRS}
 )
 
+OPTION(COMPILE_FILE_SOURCE "build filesrc" OFF)
+OPTION(COMPILE_RTSP_SOURCE "build rtspsrc" OFF)
+
+if(COMPILE_FILE_SOURCE)
+add_definitions(-DFILE_SOURCE)
+endif(COMPILE_FILE_SOURCE)
+
+if(COMPILE_RTSP_SOURCE)
+add_definitions(-DRTSP_SOURCE)
+endif(COMPILE_RTSP_SOURCE)
+
 add_executable(${PROJECT_NAME}
     src/VideoPipeline.cpp
     src/main.cpp

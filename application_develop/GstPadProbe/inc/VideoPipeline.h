@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 08:11:39
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-09-09 13:18:28
+ * @LastEditTime: 2021-09-10 03:07:59
  */
 #pragma once
 
@@ -33,31 +33,41 @@ public:
     ~VideoPipeline    (void);
 
 public:
-    SinkPutDataFunc    m_putDataFunc;
-    void*              m_putDataArgs;
-    ProbeGetResultFunc m_getResultFunc;
-    void*              m_getResultArgs;
-    ProcDataFunc       m_procDataFunc;
-    void*              m_procDataArgs;
+    SinkPutDataFunc     m_putDataFunc;
+    void*               m_putDataArgs;
+    ProbeGetResultFunc  m_getResultFunc;
+    void*               m_getResultArgs;
+    ProcDataFunc        m_procDataFunc;
+    void*               m_procDataArgs;
 
-    unsigned long   m_queue0_probe;
+    unsigned long       m_queue0_probe;
+    unsigned long       m_trans_sink_probe;
+    unsigned long       m_trans_src_probe;
 
     VideoPipelineConfig m_config;
-    GstElement* m_gstPipeline;
+    GstElement*         m_gstPipeline;
 
-    GstElement* m_source;
-    GstElement* m_qtdemux;
-    GstElement* m_rtph264depay;
-    GstElement* m_h264parse;
-    GstElement* m_decoder;
-    GstElement* m_tee;
-    GstElement* m_queue0;
-    GstElement* m_qtioverlay;
-    GstElement* m_display;
-    GstElement* m_queue1;
-    GstElement* m_qtivtrans;
-    GstElement* m_capfilter;
-    GstElement* m_appsink;
+    volatile gint       m_syncCount;
+    volatile gboolean   isExited;
+    GMutex              m_syncMuxtex;
+    GCond               m_syncCondition;
+    GMutex              m_mutex;
+
+    GstElement*         m_source;
+    GstElement*         m_qtdemux;
+    GstElement*         m_rtph264depay;
+    GstElement*         m_h264parse;
+    GstElement*         m_decoder;
+    GstElement*         m_tee;
+    GstPad*             m_teeDisplayPad;
+    GstPad*             m_teeAppsinkPad;
+    GstElement*         m_queue0;
+    GstElement*         m_qtioverlay;
+    GstElement*         m_display;
+    GstElement*         m_queue1;
+    GstElement*         m_qtivtrans;
+    GstElement*         m_capfilter;
+    GstElement*         m_appsink;
 };
 
 /*
