@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 12:01:39
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-09-10 03:27:49
+ * @LastEditTime: 2021-09-10 08:16:03
  */
 
 #include "VideoPipeline.h"
@@ -403,16 +403,16 @@ bool VideoPipeline::Create (void)
     gst_caps_unref (m_transCaps);
 
     gst_bin_add_many (GST_BIN (m_gstPipeline), m_capfilter, NULL);
-    
+
     m_gstPad = gst_element_get_static_pad (m_qtivtrans, "sink");
     m_trans_sink_probe = gst_pad_add_probe (m_gstPad, (GstPadProbeType) (
-                        GST_PAD_PROBE_TYPE_BUFFER), cb_sync_before_buffer_probe, 
+                        GST_PAD_PROBE_TYPE_BUFFER), cb_sync_before_buffer_probe,
                         reinterpret_cast<void*> (this), NULL);
     gst_object_unref (m_gstPad);
 
     m_gstPad = gst_element_get_static_pad (m_qtivtrans, "src");
     m_trans_src_probe = gst_pad_add_probe (m_gstPad, (GstPadProbeType) (
-                        GST_PAD_PROBE_TYPE_BUFFER), cb_sync_buffer_probe, 
+                        GST_PAD_PROBE_TYPE_BUFFER), cb_sync_buffer_probe,
                         reinterpret_cast<void*> (this), NULL);
     gst_object_unref (m_gstPad);
 
@@ -507,6 +507,12 @@ bool VideoPipeline::Resume (void)
 
 void VideoPipeline::Destroy (void)
 {
+    GstPad* teeSrcPad;
+    while (teeSrcPad = gst_element_get_request_pad (m_tee, "src_%u")) {
+        gst_element_release_request_pad (m_tee, teeSrcPad);
+        g_object_unref (teeSrcPad);
+    }
+
     if (m_gstPipeline) {
         isExited = true;
         g_mutex_lock (&m_syncMuxtex);
@@ -552,12 +558,6 @@ void VideoPipeline::Destroy (void)
         gst_pad_remove_probe(gstpad, m_queue0_probe);
         gst_object_unref (gstpad);
         m_queue0_probe = -1;
-    }
-
-    GstPad* teeSrcPad;
-    while (teeSrcPad = gst_element_get_request_pad (m_tee, "src_%u")) {
-        gst_element_release_request_pad (m_tee, teeSrcPad);
-        g_object_unref (teeSrcPad);
     }
 
     g_mutex_clear (&m_mutex);
