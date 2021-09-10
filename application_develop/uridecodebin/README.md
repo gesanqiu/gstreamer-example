@@ -10,6 +10,8 @@
 
 uridecodebin是属于Playback部分的内容，内部集成了一系列自动化操作，可以有效缩短pipeline的元素，但是整个pipeline的构建过程对用户并不透明，因此不能很好的控制内部元素的链接，这需要用户做一定的取舍。
 
+**教程地址：[uridecodebin](https://ricardolu.gitbook.io/gstreamer/application-development/uridecodebin)**
+
 参考文档：
 - [uridecodebin](https://gstreamer.freedesktop.org/documentation/playback/uridecodebin.html?gi-language=c#uridecodebin-page)
 - [decodebin](https://gstreamer.freedesktop.org/documentation/playback/decodebin.html?gi-language=c#decodebin-page)
