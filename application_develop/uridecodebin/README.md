@@ -3,8 +3,8 @@
  * @version: 1.0
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2021-08-27 08:09:29
- * @LastEditors: Please set LastEditors
- * @LastEditTime: 2021-09-03 23:55:45
+ * @LastEditors: Ricardo Lu
+ * @LastEditTime: 2021-10-08 11:08:38
 -->
 # uridecodebin
 
@@ -28,6 +28,8 @@ make
 ./uridecoderbin --srcuri file:///user/local/gstreamer-example/application_develop/video.mp4
 
 # rtspsrc
+# notice that pipeline add audio control, so rtsp need to support audio information
+# or notes all the relative codes, or else the pipeline can't run.
 ./uridecoderbin --srcuri rtsp://admin:1234@10.0.23.227:554
 
 # souphttpsrc
