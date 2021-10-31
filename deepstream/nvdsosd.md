@@ -50,7 +50,8 @@ typedef struct NvDsDisplayMeta {
 ## Develop Guide
 
 ```c++
-/* file-source -> h264parser -> nvv4l2decoder ->nvstreammux
+/* 
+ * file-source -> h264parser -> nvv4l2decoder ->nvstreammux
  * nvinfer -> nvvideoconvert -> nvdsosd -> nveglglessink
  */
 ```
@@ -169,3 +170,4 @@ nvvidconv_sink_pad_buffer_probe (GstPad * pad, GstPadProbeInfo * info,
 ## FAQ
 
 上述示例Pipeline在显示上使用了nveglglessink插件，这取决于开发平台是否支持显示，例如在Tesla这类计算卡平台上使用docker container环境开发时默认无法显示，具体可以参考https://forums.developer.nvidia.com/t/cugraphicsglregisterbuffer-failed-with-error-219-gst-eglglessink-cuda-init-texture-1/121833这个issue，据CE的回复需要安装Nvidia的Display Driver之后配置Virtual Display，由于我所用的T4服务器是公司资产，无法确定这么做的风险，所以没有尝试，而Jetson平台几乎都支持GPU Display，因此没有这种问题。
+
