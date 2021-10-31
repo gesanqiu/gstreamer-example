@@ -13,7 +13,7 @@
 - 支持overlay图片的格式为RGBA；
 - 日期/时间和用户自定义文本内容只能通过设置GST Properties的方式来实现，也即这部分信息将和GST Pipeline绑定，一旦pipeline初始化完毕就无法改变。
 
-**qtioverlay****插件源码地址：**[**qtioverlay**](https://github.com/gesanqiu/gstreamer-example/tree/main/qti_gst_plugins/qtioverlay)
+**qtioverlay插件源码地址：**[**qtioverlay**](https://github.com/gesanqiu/gstreamer-example/tree/main/qti_gst_plugins/qtioverlay)
 
 **例程地址：**[**qtioverlay-example**](https://github.com/gesanqiu/gstreamer-example/tree/main/qti_gst_plugins/qtioverlay/qtioverlay-example)
 
