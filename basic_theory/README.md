@@ -1,6 +1,6 @@
 # Basic Theory
 
-[![](https://img.shields.io/badge/Author-@RucardoLu-red.svg)](https://github.com/gesanqiu)![](https://img.shields.io/badge/Version-1.0.0-blue.svg)[![](https://img.shields.io/badge/license-GPL-000000.svg)](https://opensource.org/licenses/GPL-3.0/)
+[![](https://img.shields.io/badge/Author-@RucardoLu-red.svg)](https://github.com/gesanqiu)![](https://img.shields.io/badge/Version-2.0.0-blue.svg)[![](https://img.shields.io/badge/license-GPL-000000.svg)](https://opensource.org/licenses/GPL-3.0/)
 
 这一部分将主要介绍：
 

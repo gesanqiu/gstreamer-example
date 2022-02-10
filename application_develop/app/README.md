@@ -5,7 +5,7 @@
 - [GstAppSink](https://gstreamer.freedesktop.org/documentation/applib/gstappsink.html) – 应用程序从管道中提取GstSample的简便方法
 - [GstAppSrc](https://gstreamer.freedesktop.org/documentation/applib/gstappsrc.html) – 应用程序向管道中注入GstBuffer的简单方法
 
-本仓库是这两个插件的应用实例，**教程地址：[GStreamer-app](https://ricardolu.gitbook.io/gstreamer/application-development/app)**
+本教程是这两个插件的应用实例，**教程地址：[GStreamer-app](https://ricardolu.gitbook.io/gstreamer/application-development/app)**
 
 ## Build & Run
 

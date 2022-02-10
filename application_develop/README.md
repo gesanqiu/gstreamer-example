@@ -25,3 +25,4 @@ GStreamer作为一个音视频应用开发框架，提供了一个快速开发�
 - 开发框架：GStreamer， OpenCV
 - 第三方库：gflags，json-glib-1.0，glib-2.0
 - 构建工具：[CMake](https://ricardolu.gitbook.io/trantor/cmake-in-action)
+

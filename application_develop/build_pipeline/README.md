@@ -1,6 +1,6 @@
 # Build Pipeline
 
-GStreamer提供了一个命令行工具`gst-launch-1.0`用于快速构建运行Pipeline，同样的GStreamer也提供了C-API用于在C/C++开发中引入GStreamer Pipeline，本仓库是构建GStreamer Pipeline的两种方式的代码实例。
+GStreamer提供了一个命令行工具`gst-launch-1.0`用于快速构建运行Pipeline，同样的GStreamer也提供了C-API用于在C/C++应用开发中引入GStreamer Pipeline，本教程是构建GStreamer Pipeline的两种方式的代码实例。
 
 **教程地址：[Build Pipeline](https://ricardolu.gitbook.io/gstreamer/application-development/build-pipeline)**
 

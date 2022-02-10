@@ -1,11 +1,3 @@
-<!--
- * @Description: README of uridecodebin
- * @version: 1.0
- * @Author: Ricardo Lu<shenglu1202@163.com>
- * @Date: 2021-08-27 08:09:29
- * @LastEditors: Ricardo Lu
- * @LastEditTime: 2021-10-08 11:08:38
--->
 # uridecodebin
 
 uridecodebin是属于Playback部分的内容，内部集成了一系列自动化操作，可以有效缩短pipeline的元素，但是整个pipeline的构建过程对用户并不透明，因此不能很好的控制内部元素的链接，这需要用户做一定的取舍。
