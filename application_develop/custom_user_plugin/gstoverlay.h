@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2022-05-19 15:43:22
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2022-05-19 16:56:51
+ * @LastEditTime: 2022-05-21 16:50:48
  */
 
 #ifndef __GST_OVERLAY_H__
@@ -23,27 +23,32 @@ G_BEGIN_DECLS
 #define GST_IS_OVERLAY_CLASS(klass)   (G_TYPE_CHECK_CLASS_TYPE((klass), GST_TYPE_OVERLAY))
 #define GST_OVERLAY_CAST(obj)         ((GstOverlay *)(obj))
 
-typedef struct _GstOverlay GstOverlay;
+typedef enum _BufferFormat {
+    NV12,
+    NV21
+}BufferFormat;
+
+typedef struct _GstOverlay      GstOverlay;
 typedef struct _GstOverlayClass GstOverlayClass;
-typedef struct _GstOverlayText GstOverlayText;
-typedef struct _GstOverlayBBox GstOverlayBBox;
+typedef struct _GstOverlayText  GstOverlayText;
+typedef struct _GstOverlayBBox  GstOverlayBBox;
 
 struct _GstOverlay
 {
     GstVideoFilter      parent;
     Overlay             *overlay;
-    TargetBufferFormat  format;
+    BufferFormat        format;
     guint               width;
     guint               height;
     GMutex              lock;
 
-    /* User specifies color */
+    /* User specified color */
     guint               bbox_color;
     guint               text_color;
 
-    /* User specifies overlay */
-    GSequence           *usr_bbox;
-    GSequence           *usr_text;
+    /* User specified overlay */
+    GstOverlayText      *usr_text;
+    GstOverlayBBox      *usr_bbox;
 };
 
 struct _GstOverlayClass {
@@ -53,22 +58,27 @@ struct _GstOverlayClass {
 /* GstOverlayText - parameters for text overlay
  * text: user text
  * color: RGBA format overlay color
+ * thick: user text box overlay thcik
+ * left: left coordinate of text
+ * top: top coordinate of text
  */
 struct _GstOverlayText {
     gchar               *text;
     guint               color;
-    GstVideoRectangle   dest_rect;
     guint               thick;
+    guint               left;
+    guint               top;
 };
 
 /* GstOverlayBBox - parameters for user bounding box overlay
  * label: bounding box label
  * boundind_box: boundind box rectangle
  * color: RGBA format overlay color
+ * thick: bounding box overlay thcik
  */
 struct _GstOverlayBBox {
     gchar               *label;
-    GstVideoRectangle   boundind_box;
+    GstVideoRectangle   bounding_box;
     guint               color;
     guint               thick;
 };
