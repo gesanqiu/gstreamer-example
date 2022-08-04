@@ -569,17 +569,17 @@ void VideoPipeline::Destroy(void)
         m_pipeline = NULL;
     }
 
-    // if (m_cvt_sink_probe != -1 && m_queue0) {
+    // if (m_cvt_sink_probe != -1 && m_nvvideoconvert1) {
     //     GstPad *gstpad = gst_element_get_static_pad(m_nvvideoconvert1, "sink");
     //     if (!gstpad) {
-    //         LOG_ERROR("Could not find '{}' in '{}'", "src", GST_ELEMENT_NAME(m_nvvideoconvert1));
+    //         LOG_ERROR("Could not find '{}' in '{}'", "sink", GST_ELEMENT_NAME(m_nvvideoconvert1));
     //     }
     //     gst_pad_remove_probe(gstpad, m_cvt_sink_probe);
     //     gst_object_unref(gstpad);
     //     m_cvt_sink_probe = -1;
     // }
 
-    // if (m_cvt_src_probe != -1 && m_queue0) {
+    // if (m_cvt_src_probe != -1 && m_nvvideoconvert1) {
     //     GstPad *gstpad = gst_element_get_static_pad(m_nvvideoconvert1, "src");
     //     if (!gstpad) {
     //         LOG_ERROR("Could not find '{}' in '{}'", "src", GST_ELEMENT_NAME(m_nvvideoconvert1));
@@ -590,9 +590,9 @@ void VideoPipeline::Destroy(void)
     // }
 
     if (m_dec_sink_probe != -1 && m_decoder) {
-        GstPad *gstpad = gst_element_get_static_pad(m_decoder, "src");
+        GstPad *gstpad = gst_element_get_static_pad(m_decoder, "sink");
         if (!gstpad) {
-            LOG_ERROR("Could not find '{}' in '{}'", "src", GST_ELEMENT_NAME(m_queue0));
+            LOG_ERROR("Could not find '{}' in '{}'", "sink", GST_ELEMENT_NAME(m_decoder));
         }
         gst_pad_remove_probe(gstpad, m_dec_sink_probe);
         gst_object_unref(gstpad);
