@@ -12,35 +12,256 @@ GStreamer中的每一个element可以决定自己的数据调度方式，即elem
 
 ## Configuring Threads in GStreamer
 
-一条 `STREAM_STATUS` 消息
+“streaming threads”的运行状态会经由发布在GstBus中的STREAM_STATUS消息通知应用程序。根据运行状态不同，消息被分为以下多种类型：
 
-- 当
+- 当一个新的线程将要被创建时，会有一条类型为GST_STREAM_STATUS_TYPE_CREATE的STREAM_STATUS消息被发出。只有在接收到这条消息后，应用程序才能为GstTask配置GstTaskPool。此时配置的GstTaskPool可由应用程序定制，定制后的任务池会提供线程来实现“streaming threads”的具体需求。
+  
+  需要注意的是，当应用程序在定制化GstTaskPool时，必须以同步方式处理STREAM_STATUS消息；当应用程序不定制GstTaskPool时，处理STREAM_STATUS消息的函数返回后，GstTask会使用默认的GstTaskPool。
 
-- 当
+- 当一个线程进入或离开时，应用程序可以配置这个线程的优先级。当线程被销毁时，应用程序也会得到STREAM_STATUS消息通知。
 
-- 你
+- 当线程开启、暂停和终止时，应用程序也会得到STREAM_STATUS消息通知。在GUI应用中。这些消息可以被用来可视化“streaming threads”的运行状态。
 
-我们
+下一小节中会介绍一个具体的示例。
 
 ### Boost priority of a thread
 
-让
+```
+.----------.    .----------.
+| fakesrc  |    | fakesink |
+|         src->sink        |
+'----------'    '----------'
+```
 
-- 当
+以上图的简单流水线为例。其中的数据调度模式为，fakesrc开启“streaming threads”以生成虚拟数据，同时它还使用push模式将数据推送给fakesink。应用程序若想提升“streaming threads”的优先级则可通过下述方法实现：
 
-- 此
+- 当流水线状态从READY变为PAUSED时，fakesrc生成一条STREAM_STATUS消息，表示其需要一个“streaming threads”来将数据推送给fakesink。
 
-- 或者
+- 应用程序从bus上收到这条消息时，会使用同步方式调用一个bus响应函数处理此消息。在该函数中，应用程序会为消息中传递而来的GstTask实例配置一个定制化的GstTaskPool。这个定制化的任务池会负责创建线程。而我们提升“streaming threads”优先级的需求可以在任务池创建线程时完成。
 
-在
+- 另一种提高“streaming threads”优先级的方法如下。利用这条消息是被bus响应函数同步方式处理的特性，此时响应函数已经在一个线程内，应用程序可以使用ENTER/LEAVE通知来提升当前线程的优先级，甚至是操作系统对当前线程的调度策略。
 
-这个
+在上段第一点中，我们需要实现一个配置给GstTask实例的定制化GstTaskPool。下面的代码就是一个定制化GstTaskPool的实现。实现方式使用Gobject的派生方式，从GstTaskPool派生出子类
 
-在
+这个TestRTPool。这个子类的push方法中，应用程序使用pthread创建了一个SCHED_RR轮转法实时线程。注意，创建实时线程可能要求应用程序获得更多的系统权限。
 
-注意
+```c
+#include <pthread.h>
 
-当
+typedef struct
+{
+  pthread_t thread;
+} TestRTId;
+
+G_DEFINE_TYPE (TestRTPool, test_rt_pool, GST_TYPE_TASK_POOL);
+
+static void
+default_prepare (GstTaskPool * pool, GError ** error)
+{
+  /* we don't do anything here. We could construct a pool of threads here that
+   * we could reuse later but we don't */
+}
+
+static void
+default_cleanup (GstTaskPool * pool)
+{
+}
+
+static gpointer
+default_push (GstTaskPool * pool, GstTaskPoolFunction func, gpointer data,
+    GError ** error)
+{
+  TestRTId *tid;
+  gint res;
+  pthread_attr_t attr;
+  struct sched_param param;
+
+  tid = g_slice_new0 (TestRTId);
+
+  pthread_attr_init (&attr);
+  if ((res = pthread_attr_setschedpolicy (&attr, SCHED_RR)) != 0)
+    g_warning ("setschedpolicy: failure: %p", g_strerror (res));
+
+  param.sched_priority = 50;
+  if ((res = pthread_attr_setschedparam (&attr, &param)) != 0)
+    g_warning ("setschedparam: failure: %p", g_strerror (res));
+
+  if ((res = pthread_attr_setinheritsched (&attr, PTHREAD_EXPLICIT_SCHED)) != 0)
+    g_warning ("setinheritsched: failure: %p", g_strerror (res));
+
+  res = pthread_create (&tid->thread, &attr, (void *(*)(void *)) func, data);
+
+  if (res != 0) {
+    g_set_error (error, G_THREAD_ERROR, G_THREAD_ERROR_AGAIN,
+        "Error creating thread: %s", g_strerror (res));
+    g_slice_free (TestRTId, tid);
+    tid = NULL;
+  }
+
+  return tid;
+}
+
+static void
+default_join (GstTaskPool * pool, gpointer id)
+{
+  TestRTId *tid = (TestRTId *) id;
+
+  pthread_join (tid->thread, NULL);
+
+  g_slice_free (TestRTId, tid);
+}
+
+static void
+test_rt_pool_class_init (TestRTPoolClass * klass)
+{
+  GstTaskPoolClass *gsttaskpool_class;
+
+  gsttaskpool_class = (GstTaskPoolClass *) klass;
+
+  gsttaskpool_class->prepare = default_prepare;
+  gsttaskpool_class->cleanup = default_cleanup;
+  gsttaskpool_class->push = default_push;
+  gsttaskpool_class->join = default_join;
+}
+
+static void
+test_rt_pool_init (TestRTPool * pool)
+{
+}
+
+GstTaskPool *
+test_rt_pool_new (void)
+{
+  GstTaskPool *pool;
+
+  pool = g_object_new (TEST_TYPE_RT_POOL, NULL);
+
+  return pool;
+}
+```
+
+上述最关键的是default_push函数。它需要启动一个新线程运行从形参func传入的指定函数。现实中更适当做法可能是在线程池中多准备一些线程，避免频繁的线程创建和销毁所带来的不必要开销。
+
+在下一段代码中，应用程序开始真正为fakesrc配置上述生成的定制化GstTaskPool。如前文所述，我们需要一个同步的bus响应函数来处理STREAM_STATUS消息，从而在获得GST_STREAM_STATUS_TYPE_CREATE类型消息时，为GstTaskl配置定制化GstTaskPool。
+
+```c
+static GMainLoop* loop;
+
+static void
+on_stream_status (GstBus     *bus,
+                  GstMessage *message,
+                  gpointer    user_data)
+{
+  GstStreamStatusType type;
+  GstElement *owner;
+  const GValue *val;
+  GstTask *task = NULL;
+
+  gst_message_parse_stream_status (message, &type, &owner);
+
+  val = gst_message_get_stream_status_object (message);
+
+  /* see if we know how to deal with this object */
+  if (G_VALUE_TYPE (val) == GST_TYPE_TASK) {
+    task = g_value_get_object (val);
+  }
+
+  switch (type) {
+    case GST_STREAM_STATUS_TYPE_CREATE:
+      if (task) {
+        GstTaskPool *pool;
+
+        pool = test_rt_pool_new();
+
+        gst_task_set_pool (task, pool);
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+static void
+on_error (GstBus     *bus,
+          GstMessage *message,
+          gpointer    user_data)
+{
+  g_message ("received ERROR");
+  g_main_loop_quit (loop);
+}
+
+static void
+on_eos (GstBus     *bus,
+        GstMessage *message,
+        gpointer    user_data)
+{
+  g_main_loop_quit (loop);
+}
+
+int
+main (int argc, char *argv[])
+{
+  GstElement *bin, *fakesrc, *fakesink;
+  GstBus *bus;
+  GstStateChangeReturn ret;
+
+  gst_init (&argc, &argv);
+
+  /* create a new bin to hold the elements */
+  bin = gst_pipeline_new ("pipeline");
+  g_assert (bin);
+
+  /* create a source */
+  fakesrc = gst_element_factory_make ("fakesrc", "fakesrc");
+  g_assert (fakesrc);
+  g_object_set (fakesrc, "num-buffers", 50, NULL);
+
+  /* and a sink */
+  fakesink = gst_element_factory_make ("fakesink", "fakesink");
+  g_assert (fakesink);
+
+  /* add objects to the main pipeline */
+  gst_bin_add_many (GST_BIN (bin), fakesrc, fakesink, NULL);
+
+  /* link the elements */
+  gst_element_link (fakesrc, fakesink);
+
+  loop = g_main_loop_new (NULL, FALSE);
+
+  /* get the bus, we need to install a sync handler */
+  bus = gst_pipeline_get_bus (GST_PIPELINE (bin));
+  gst_bus_enable_sync_message_emission (bus);
+  gst_bus_add_signal_watch (bus);
+
+  g_signal_connect (bus, "sync-message::stream-status",
+      (GCallback) on_stream_status, NULL);
+  g_signal_connect (bus, "message::error",
+      (GCallback) on_error, NULL);
+  g_signal_connect (bus, "message::eos",
+      (GCallback) on_eos, NULL);
+
+  /* start playing */
+  ret = gst_element_set_state (bin, GST_STATE_PLAYING);
+  if (ret != GST_STATE_CHANGE_SUCCESS) {
+    g_message ("failed to change state");
+    return -1;
+  }
+
+  /* Run event loop listening for bus messages until EOS or ERROR */
+  g_main_loop_run (loop);
+
+  /* stop the bin */
+  gst_element_set_state (bin, GST_STATE_NULL);
+  gst_object_unref (bus);
+  g_main_loop_unref (loop);
+
+  return 0;
+}
+```
+
+注意，上述代码很可能需要应用程序获得root权限。当不能创建线程时，gst_element_set_state将会运行失败，失败的返回值会被应用程序所捕获。
+
+当流水线中存在多个线程时，应用程序会同时收到多条STREAM_STATUS消息。可以通过消息所有者（所有者往往是启动这个消息所对应线程的pad或element）来区分这些消息，从而明确每个消息所对应线程运行的是整个应用程序上下文中的哪个函数。
 
 ## When would you want to force a thread?
 
