@@ -41,9 +41,7 @@ GStreamer中的每一个element可以决定自己的数据调度方式，即elem
 
 - 另一种提高“streaming threads”优先级的方法如下。利用这条消息是被bus响应函数同步方式处理的特性，此时响应函数已经在一个线程内，应用程序可以使用ENTER/LEAVE通知来提升当前线程的优先级，甚至是操作系统对当前线程的调度策略。
 
-在上段第一点中，我们需要实现一个配置给GstTask实例的定制化GstTaskPool。下面的代码就是一个定制化GstTaskPool的实现。实现方式使用Gobject的派生方式，从GstTaskPool派生出子类
-
-这个TestRTPool。这个子类的push方法中，应用程序使用pthread创建了一个SCHED_RR轮转法实时线程。注意，创建实时线程可能要求应用程序获得更多的系统权限。
+在上段第一点中，我们需要实现一个配置给GstTask实例的定制化GstTaskPool。下面的代码就是一个定制化GstTaskPool的实现。实现方式使用Gobject的派生方式，从GstTaskPool派生出子类，TestRTPool。TestRTPool类的push方法中，应用程序使用pthread创建了一个SCHED_RR轮转法实时线程。注意，创建实时线程可能要求应用程序获得更多的系统权限。
 
 ```c
 #include <pthread.h>
@@ -271,11 +269,11 @@ main (int argc, char *argv[])
 
 - 数据缓存。当应用程序在处理互联网流式数据时或者从声卡、显卡里记录实时数据流时，数据缓存就十分必要。并且数据缓存可以降低流水线中某个环节突然卡顿导致数据丢失而产生的影响。具体示例可以参见《Stream buffering》一文，那里举例了queue2组件在缓存互联网数据时的作用。
   
-  ![](D:\code\gstreamer-example\basic_theory\app_dev_manual\images\thread-buffering.png)
+  ![Thread Buffering](images/thread-buffering.png)
 
 - 同步输出设备。当流水线中的数据同时包含视频和音频时，并且两者都作为流水线的独立输出。通过为它们各自添加独立线程，就能做到音视频相互独立解析，并且提供更好的音视频同步方式。
   
-  ![](D:\code\gstreamer-example\basic_theory\app_dev_manual\images\thread-synchronizing.png)
+  ![Thread Synchronizing](images/thread-synchronizing.png)
 
 
 阅读至此，您可能已经发现在流水线中强制使用独立线程的特殊类型element就是“queue”。queue作为线程隔离组件提供流水线中强制使用新线程的能力。它的实现是基于众所周知的生产者/消费者模式，除了能提供跨线程安全的数据流通功能，它本身还可以用作缓存空间。queue包含若干个基于GObject实现的属性，可以调节这些属性实现特定业务。例如，可以实现数据流量的上下界控制。queue的下界属性默认情况下不启用，但当应用程序指定了数据流量下界时，若没有足够的数据量通过queue传递，则queue不会输出任何数据。上界属性则代表，如果传输中的数据量超过上界阈值，则queue会根据其他属性的配置，或阻挡更多数据的流入，或开启不同的数据丢弃功能。
