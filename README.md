@@ -11,6 +11,12 @@
 
 ## 更新日志
 
+- 2022.11.06：更新threads教程。
+
+- 2022.09.12：更新`uridecodebin`源码剖析①。
+
+- 2022.09.10：更新`rtspsrc`源码剖析①。
+
 - 2022.07.17：更新基于deepstream-6.1开发的pipeline，后续用于集成yolov5s.trt模型。
 - 2022.02.10：增加更新日志，修改更新计划，整理已更新内容，删除多余的初始化文档，后续随缘更新。
 - 2022.01.25：将Tutorial文档merge进来。
@@ -50,6 +56,12 @@
   - nvdsosd
 
 **注**：作者才疏学浅，如有纰漏，欢迎指正。
+
+## 贡献者
+
+翻译：[@Yinan Fu](https://github.com/fengxueem)
+
+校对：[@thetffs](https://github.com/thetffs)
 
 ## 联系方式‌
 
