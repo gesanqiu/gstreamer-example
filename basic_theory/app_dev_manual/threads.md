@@ -1,8 +1,8 @@
 # Threads
 
-GStreamer的设计原生支持多线程，并完全保证线程安全。大多数情况下，多线程实现细节对基于GStreamer开发的应用程序隐藏，因为这会让应用程序开发更便利。而在某些场景下，应用程序可能会介入Gstreamer的多线程机制。此时，Gstreamer允许应用程序指定在流水线内的某些部分使用多线程。具体请参考《When would you want to force a thread?》一文。
+GStreamer的设计原生支持多线程，并完全保证线程安全。大多数情况下，多线程实现细节对基于GStreamer开发的应用程序隐藏，因为这会让应用程序开发更便利。而在某些场景下，应用程序可能会介入Gstreamer的多线程机制。此时，Gstreamer允许应用程序指定在流水线内的某些部分使用多线程。具体请参考《When would you want to force a thread?》一节。
 
-Gstreamer还支持开发人员在线程被创建时获取通知。从而，开发人员可以配置线程的优先级，设置线程池的相关行为等。具体请参考《Configuring Threads in GStreamer》一文。
+Gstreamer还支持开发人员在线程被创建时获取通知。从而，开发人员可以配置线程的优先级，设置线程池的相关行为等。具体请参考《Configuring Threads in GStreamer》一节。
 
 ## Scheduling in GStreamer
 
@@ -138,9 +138,9 @@ test_rt_pool_new (void)
 }
 ```
 
-上述最关键的是default_push函数。它需要启动一个新线程运行从形参func传入的指定函数。现实中更适当做法可能是在线程池中多准备一些线程，避免频繁的线程创建和销毁所带来的不必要开销。
+上述最关键的是default_push函数。它需要启动一个新线程并运行从形参func传入的指定函数。现实中更适当做法可能是在线程池中多准备一些线程，避免频繁的线程创建和销毁所带来的不必要开销。
 
-在下一段代码中，应用程序开始真正为fakesrc配置上述生成的定制化GstTaskPool。如前文所述，我们需要一个同步的bus响应函数来处理STREAM_STATUS消息，从而在获得GST_STREAM_STATUS_TYPE_CREATE类型消息时，为GstTaskl配置定制化GstTaskPool。
+在下一段代码中，应用程序开始真正为fakesrc配置上述生成的定制化GstTaskPool。如前文所述，我们需要一个同步的bus响应函数来处理STREAM_STATUS消息，从而在获得GST_STREAM_STATUS_TYPE_CREATE类型消息时，为GstTask配置定制化GstTaskPool。
 
 ```c
 static GMainLoop* loop;
