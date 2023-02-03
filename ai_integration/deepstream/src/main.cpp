@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2022-07-15 22:07:33
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2022-07-16 18:42:11
+ * @LastEditTime: 2023-02-03 06:02:14
  */
 
 #include <sys/stat.h>
@@ -187,7 +187,7 @@ done:
 static bool validateConfigPath(const char* name, const std::string& value) 
 { 
     if (0 == value.compare ("")) {
-        LOG_ERROR("You must specify a dlc file!");
+        LOG_ERROR("You must specify a config file!");
         return false;
     }
 
