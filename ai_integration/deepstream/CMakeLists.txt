@@ -14,7 +14,7 @@ pkg_check_modules(GST    REQUIRED gstreamer-1.0)
 pkg_check_modules(GSTAPP REQUIRED gstreamer-app-1.0)
 pkg_check_modules(GLIB   REQUIRED glib-2.0)
 pkg_check_modules(GFLAGS REQUIRED gflags)
-pkg_check_modules(JSON   REQUIRED json-glib-1.0)
+pkg_check_modules(JSONCPP REQUIRED jsoncpp)
 
 set(DeepStream_ROOT "/opt/nvidia/deepstream/deepstream-6.1")
 set(DeepStream_INCLUDE_DIRS "${DeepStream_ROOT}/sources/includes")
@@ -34,7 +34,7 @@ include_directories(
     ${GSTAPP_INCLUDE_DIRS}
     ${GLIB_INCLUDE_DIRS}
     ${GFLAGS_INCLUDE_DIRS}
-    ${JSON_INCLUDE_DIRS}
+    ${JSONCPP_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
     ${spdlog_INCLUDE_DIRS}
     ${DeepStream_INCLUDE_DIRS}
@@ -45,7 +45,7 @@ link_directories(
     ${GSTAPP_LIBRARY_DIRS}
     ${GLIB_LIBRARY_DIRS}
     ${GFLAGS_LIBRARY_DIRS}
-    ${JSON_LIBRARY_DIRS}
+    ${JSONCPP_LIBRARY_DIRS}
     ${OpenCV_LIBRARY_DIRS}
     ${spdlog_LIBRARY_DIRS}
     ${DeepStream_LIBRARY_DIRS}
@@ -96,7 +96,7 @@ target_link_libraries(${PROJECT_NAME}
     ${GSTAPP_LIBRARIES}
     ${GLIB_LIBRARIES}
     ${GFLAGS_LIBRARIES}
-    ${JSON_LIBRARIES}
+    ${JSONCPP_LIBRARIES}
     ${OpenCV_LIBRARIES}
     nvbufsurface
     nvdsgst_meta

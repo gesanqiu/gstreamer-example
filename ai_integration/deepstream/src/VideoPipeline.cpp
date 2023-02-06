@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2022-07-15 22:07:19
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2023-02-03 09:49:52
+ * @LastEditTime: 2023-02-06 21:04:48
  */
 
 #include "VideoPipeline.h"
@@ -89,9 +89,9 @@ static GstFlowReturn cb_appsink_new_sample(
     VideoPipeline* vp = static_cast<VideoPipeline*>(user_data);
     GstSample* sample = nullptr;
 
-    if (!vp->m_dump) {
+    if (!vp->m_dumped) {
         GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(vp->m_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "video-pipeline");
-        vp->m_dump = true;
+        vp->m_dumped = true;
     }
 
     g_signal_emit_by_name(appsink, "pull-sample", &sample);
@@ -177,8 +177,8 @@ static void cb_decodebin_child_added(GstChildProxy* child_proxy, GObject* object
     if (g_strrstr(name, "nvv4l2decoder") == name) {
         g_object_set(object, "cudadec-memtype", 2, nullptr);
 
-        if (g_strstr_len(vp->m_config.uri.c_str(), -1, "file:/") ==
-            vp->m_config.uri.c_str() && vp->m_config.file_loop) {
+        if (g_strstr_len(vp->m_config.src_uri.c_str(), -1, "file:/") ==
+            vp->m_config.src_uri.c_str() && vp->m_config.file_loop) {
             GstPad* gst_pad = gst_element_get_static_pad(GST_ELEMENT(object), "sink");
             vp->m_dec_sink_probe = gst_pad_add_probe(gst_pad, (GstPadProbeType)(
                 GST_PAD_PROBE_TYPE_EVENT_BOTH | GST_PAD_PROBE_TYPE_EVENT_FLUSH |
@@ -187,8 +187,8 @@ static void cb_decodebin_child_added(GstChildProxy* child_proxy, GObject* object
 
             vp->m_decoder = GST_ELEMENT(object);
             gst_object_ref(object);
-        } else if (g_strstr_len(vp->m_config.uri.c_str(), -1, "rtsp:/") ==
-            vp->m_config.uri.c_str()) {
+        } else if (g_strstr_len(vp->m_config.src_uri.c_str(), -1, "rtsp:/") ==
+            vp->m_config.src_uri.c_str()) {
             vp->m_decoder = GST_ELEMENT(object);
             gst_object_ref(object);
         }
@@ -233,7 +233,7 @@ static void cb_uridecodebin_pad_added(GstElement* decodebin, GstPad* pad,
     LOG_INFO("structure:{}", gst_structure_to_string(str));
 
     if (g_str_has_prefix (name, "video/x-raw")) {
-        if (vp->m_config.enable_display || vp->m_config.enable_appsink) {
+        if (vp->m_config.enable_hdmi || vp->m_config.enable_rtmp || vp->m_config.enable_appsink) {
             sinkpad = gst_element_get_static_pad(vp->m_tee0, "sink");
         } else {
             sinkpad = gst_element_get_static_pad(vp->m_fakesink, "sink");
@@ -280,7 +280,7 @@ VideoPipeline::VideoPipeline(const VideoPipelineConfig& config)
     m_dec_sink_probe = -1;
     m_prev_accumulated_base = 0;
     m_accumulated_base = 0;
-    m_dump = false;
+    m_dumped = false;
 
     m_putFrameFunc = nullptr;
     m_putFrameArgs = nullptr;
@@ -305,8 +305,8 @@ GstElement* VideoPipeline::CreateUridecodebin()
         return nullptr;
     }
 
-    g_object_set (G_OBJECT(m_source), "uri", m_config.uri.c_str(), nullptr);
-    LOG_INFO("Set uri of uridecodebin to {}", m_config.uri);
+    g_object_set (G_OBJECT(m_source), "uri", m_config.src_uri.c_str(), nullptr);
+    LOG_INFO("Set uri of uridecodebin to {}", m_config.src_uri);
 
     g_signal_connect(G_OBJECT(m_source), "source-setup", G_CALLBACK(
         cb_uridecodebin_source_setup), this);
@@ -332,11 +332,11 @@ GstElement* VideoPipeline::CreateV4l2src()
     GstCaps* caps = gst_caps_new_simple ("image/jpeg",
             "width", G_TYPE_INT, m_config.src_width,
             "height", G_TYPE_INT, m_config.src_height,
-            "framerate", GST_TYPE_FRACTION, m_config.framerate_n, m_config.framerate_d,
+            "framerate", GST_TYPE_FRACTION, m_config.src_framerate_n, m_config.src_framerate_d,
             "format", G_TYPE_STRING, m_config.src_format.c_str(), nullptr);
 
     if (!(m_capfilter0 = gst_element_factory_make ("capsfilter", "capfilter0"))) {
-        TS_ERR_MSG_V ("Failed to create element capsfilter named capfilter0");
+        LOG_ERROR("Failed to create element capsfilter named capfilter0");
         return nullptr;
     }
 
@@ -345,8 +345,8 @@ GstElement* VideoPipeline::CreateV4l2src()
 
     gst_bin_add_many (GST_BIN (m_pipeline), m_capfilter0, nullptr);
 
-    if (!(m_decoder = gst_element_factory_make("nvjpegdec", "nvjpegdec0"))) {
-        LOG_ERROR("Failed to create element nvjpegdec named nvjpegdec0");
+    if (!(m_decoder = gst_element_factory_make("jpegdec", "jpegdec0"))) {
+        LOG_ERROR("Failed to create element jpegdec named jpegdec0");
         return nullptr;
     }
     gst_bin_add_many(GST_BIN(m_pipeline), m_decoder, nullptr);
@@ -378,21 +378,21 @@ bool VideoPipeline::Create()
         goto exit;
     }
 
-    if (m_config.input_type == VideoType::USB_CAMERE) {
-        if (!gst_element_link_many(input, m_tee0, nullptr)) {
-            LOG_ERROR("Failed to link nvjpegdec0->tee0");
-            goto exit;
-        }
-    }
-
     if (!(m_tee0 = gst_element_factory_make("tee", "tee0"))) {
         LOG_ERROR("Failed to create element tee0 named tee0");
         goto exit;
     }
     gst_bin_add_many(GST_BIN(m_pipeline), m_tee0, nullptr);
 
-    if (!(m_queue00 = gst_element_factory_make("queue", "queue0"))) {
-        LOG_ERROR("Failed to create element queue named queue0");
+    if (m_config.input_type == VideoType::USB_CAMERE) {
+        if (!gst_element_link_many(input, m_tee0, nullptr)) {
+            LOG_ERROR("Failed to link jpegdec0->tee0");
+            goto exit;
+        }
+    }
+
+    if (!(m_queue00 = gst_element_factory_make("queue", "queue00"))) {
+        LOG_ERROR("Failed to create element queue named queue00");
         goto exit;
     }
 
@@ -410,7 +410,7 @@ bool VideoPipeline::Create()
         goto exit;
     }
 
-    if (!m_config.enable_hdmi || !m_config.enable_rtmp) {
+    if (!m_config.enable_hdmi && !m_config.enable_rtmp) {
         if (!(m_fakesink = gst_element_factory_make("fakesink", "fakesink0"))) {
             LOG_ERROR("Failed to create element fakesink named fakesink0");
             goto exit;
@@ -447,7 +447,7 @@ bool VideoPipeline::Create()
                 goto exit;
             }
             g_object_set(G_OBJECT(m_nveglglessink),
-                "sync", m_config.sync,
+                "sync", m_config.hdmi_sync,
                 "window-x", m_config.window_x,
                 "window-y", m_config.window_y,
                 "window-width", m_config.window_width,
@@ -479,8 +479,8 @@ bool VideoPipeline::Create()
             feature = gst_caps_features_new("memory:NVMM", nullptr);
             gst_caps_set_features(cvt_caps, 0, feature);
 
-            if (!(m_capfilter1 = gst_element_factory_make("capsfilter", "capfilter0"))) {
-                LOG_ERROR("Failed to create element capsfilter named capfilter0");
+            if (!(m_capfilter1 = gst_element_factory_make("capsfilter", "capfilter1"))) {
+                LOG_ERROR("Failed to create element capsfilter named capfilter1");
                 goto exit;
             }
 
@@ -497,6 +497,12 @@ bool VideoPipeline::Create()
                 "iframeinterval", m_config.enc_iframe_interval, nullptr);
             gst_bin_add_many(GST_BIN(m_pipeline), m_encoder, nullptr);
 
+            if (!(m_h264parse = gst_element_factory_make("h264parse", "h264parse0"))) {
+                LOG_ERROR("Failed to create element h264parse named h264parse0");
+                goto exit;
+            }
+            gst_bin_add_many(GST_BIN(m_pipeline), m_h264parse, nullptr);
+
             if (!(m_flvmux = gst_element_factory_make("flvmux", "flvmux0"))) {
                 LOG_ERROR("Failed to create element flvmux named flvmux0");
                 goto exit;
@@ -507,20 +513,20 @@ bool VideoPipeline::Create()
                 LOG_ERROR("Failed to create element rtmpsink named rtmpsink0");
                 goto exit;
             }
-            g_object_set(G_OBJECT(m_encoder), "location", m_config.rtmp_url.c_str(), nullptr);
+            g_object_set(G_OBJECT(m_rtmpsink), "location", m_config.rtmp_uri.c_str(), nullptr);
             gst_bin_add_many(GST_BIN(m_pipeline), m_rtmpsink, nullptr);
 
             if (!gst_element_link_many(m_tee1, m_queue11, m_nvvideoconvert0,
-                m_capfilter1, m_encoder, m_flvmux, m_rtmpsink, nullptr)) {
-                LOG_ERROR("Failed to link tee1->queue11->nvvideoconvert0->capfilter1->nvv4l2h264enc0->flvmux0->rtmpsink0");
+                m_capfilter1, m_encoder, m_h264parse, m_flvmux, m_rtmpsink, nullptr)) {
+                LOG_ERROR("Failed to link tee1->queue11->nvvideoconvert0->capfilter1->nvv4l2h264enc0->h264parse->flvmux0->rtmpsink0");
                 goto exit;
             }
         }
     }
 
     if (m_config.enable_appsink) {
-        if (!(m_queue01 = gst_element_factory_make("queue", "queue1"))) {
-            LOG_ERROR("Failed to create element queue named queue1");
+        if (!(m_queue01 = gst_element_factory_make("queue", "queue01"))) {
+            LOG_ERROR("Failed to create element queue named queue01");
             goto exit;
         }
         gst_bin_add_many(GST_BIN(m_pipeline), m_queue01, nullptr);

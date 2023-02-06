@@ -4,7 +4,7 @@
  * @Author: Ricardo Lu<shenglu1202@163.com>
  * @Date: 2022-07-15 22:07:29
  * @LastEditors: Ricardo Lu
- * @LastEditTime: 2023-02-03 09:43:52
+ * @LastEditTime: 2023-02-06 21:03:47
  */
 #pragma once
 
@@ -19,7 +19,8 @@ typedef enum _VideoType {
 }VideoType;
 
 typedef struct _VideoPipelineConfig {
-    VideoType   input_type { VideoType::FILE_STREAM };
+    std::string pipeline_id;
+    int         input_type { VideoType::FILE_STREAM };
     /*------------------uridecodebin------------------*/
     std::string src_uri;
     bool        file_loop;
@@ -29,12 +30,12 @@ typedef struct _VideoPipelineConfig {
     std::string src_device;
     std::string src_format;
     int         src_width;
-    int         stc_height;
-    int         framerate_n;
-    int         framerate_d;
+    int         src_height;
+    int         src_framerate_n;
+    int         src_framerate_d;
     /*-------------nveglglessink branch-------------*/
     bool        enable_hdmi;
-    bool        sync;
+    bool        hdmi_sync;
     int         window_x;
     int         window_y;
     int         window_width;
@@ -44,7 +45,7 @@ typedef struct _VideoPipelineConfig {
     bool        enable_rtmp;
     int         enc_bitrate;
     int         enc_iframe_interval;
-    std::string rtmp_url;
+    std::string rtmp_uri;
     /*---------------inference branch---------------*/
     bool        enable_appsink;
     /*----------------nvvideoconvert----------------*/
@@ -80,7 +81,7 @@ public:
     ProcResultFunc      m_procResultFunc;
 
 
-    uint64_t            m_queue0_src_probe;      /* probe for nvvideoconvert sync ans osd process */
+    uint64_t            m_queue00_src_probe;     /* probe for nvvideoconvert sync ans osd process */
     uint64_t            m_cvt_sink_probe;        /* probe for inference rate control */
     uint64_t            m_cvt_src_probe;         /* probe for convert lock sync */
     uint64_t            m_dec_sink_probe;        /* probe for seek */
@@ -112,6 +113,7 @@ public:
     GstElement*         m_nvvideoconvert0;  /* convert RGBA(nvjpegdec) to NV12 */
     GstElement*         m_capfilter1;
     GstElement*         m_encoder;          /* nvv4l2h264enc */
+    GstElement*         m_h264parse;        /* h264parse */
     GstElement*         m_flvmux;           /* flvmux */
     GstElement*         m_rtmpsink;         /* rtmpsink */
     GstElement*         m_queue01;          /* for inference branch */
