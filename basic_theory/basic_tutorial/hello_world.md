@@ -61,7 +61,7 @@ gcc basic-tutorial-1.c -o basic-tutorial-1 `pkg-config --cflags --libs gstreamer
 ./basic-tutorial-1
 ```
 
-Linux平台下的大部分开发软件包使用PackageConfig进行的管理，使用命令行的方式无法适应大型项目的需求，通常情况下我会使用CMake进行项目的构建，在CMake中假如以下指令即可完成GStreamer相关库的链接工作：
+Linux平台下的大部分开发软件包使用PackageConfig进行的管理，使用命令行的方式无法适应大型项目的需求，通常情况下我会使用CMake进行项目的构建，在CMake中加入以下指令即可完成GStreamer相关库的链接工作：
 
 ```cmake
 cmake_minimum_required(VERSION 3.10)
